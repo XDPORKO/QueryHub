@@ -32,7 +32,6 @@ local Window = Rayfield:CreateWindow({
 	Icon = "rbxassetid://71212053414568",
 	LoadingTitle = "Query Hub Universal",
 	LoadingSubtitle = "Loading Modules...",
- Theme = "Default",
 	ConfigurationSaving = {
 		Enabled = false,
    FolderName = "QHubByRap",
