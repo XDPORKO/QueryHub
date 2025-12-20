@@ -1,10 +1,8 @@
-pcall(function()
-	for _,v in ipairs(game:GetService("CoreGui"):GetChildren()) do
-		if v:IsA("ScreenGui") then
-			v:Destroy()
-		end
+for _,v in ipairs(CoreGui:GetChildren()) do
+	if v:IsA("ScreenGui") and v.Name:find("Rayfield") or v.Name:find("Query") then
+		v:Destroy()
 	end
-end)
+end
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
