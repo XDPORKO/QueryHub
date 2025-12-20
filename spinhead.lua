@@ -1,41 +1,52 @@
---// PULL + AUTO LOCK + ANTI COUNTER FLING
---// Mobile Support | Client Abuse Version
+--// PULL / LOCK / FLING ++
+--// Smart Client Abuse | Mobile Optimized | Visual Lock
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
-local Char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-local HRP = Char:WaitForChild("HumanoidRootPart")
-local Humanoid = Char:WaitForChild("Humanoid")
+local Char, HRP, Humanoid
+local function setupChar(char)
+	Char = char
+	HRP = char:WaitForChild("HumanoidRootPart")
+	Humanoid = char:WaitForChild("Humanoid")
+end
+setupChar(LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait())
 
--- CONFIG (BRUTAL)
-local PULL_FORCE = 8e7
-local FLING_FORCE = 9e8
-local SPIN_FORCE = 9e7
-local LOCK_DISTANCE = 2.5
+-- ================= CONFIG =================
+local CFG = {
+	PULL_FORCE = 6e7,
+	FLING_FORCE = 8e8,
+	SPIN_FORCE = 7e7,
+	LOCK_DISTANCE = 2.5,
+	SMOOTHNESS = 0.18,
+	MODE = "BRUTAL", -- PULL | LOCK | BRUTAL
+}
 
--- STATES
-local lockedTarget = nil
-local lockConn = nil
+-- ================= STATES =================
+local lockedTarget
+local lockConn
+local highlight
+local beam
 
 -- ================= UI =================
 local gui = Instance.new("ScreenGui", game.CoreGui)
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0,260,0,240)
-frame.Position = UDim2.new(0,20,0.4,0)
-frame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+frame.Size = UDim2.new(0,270,0,280)
+frame.Position = UDim2.new(0,20,0.35,0)
+frame.BackgroundColor3 = Color3.fromRGB(18,18,18)
 frame.Active = true
 frame.Draggable = true
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,16)
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,18)
 
-local function btn(text,y)
+local function btn(txt,y)
 	local b = Instance.new("TextButton", frame)
-	b.Size = UDim2.new(1,-20,0,35)
+	b.Size = UDim2.new(1,-20,0,36)
 	b.Position = UDim2.new(0,10,0,y)
-	b.Text = text
+	b.Text = txt
 	b.Font = Enum.Font.GothamBold
 	b.TextSize = 14
 	b.TextColor3 = Color3.new(1,1,1)
@@ -45,41 +56,62 @@ local function btn(text,y)
 end
 
 local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1,0,0,30)
-title.Text = "PULL / LOCK / FLING"
+title.Size = UDim2.new(1,0,0,32)
+title.Text = "LOCK / PULL / FLING ++"
 title.Font = Enum.Font.GothamBold
 title.TextSize = 16
 title.TextColor3 = Color3.new(1,1,1)
 title.BackgroundTransparency = 1
 
 local nameBox = Instance.new("TextBox", frame)
-nameBox.Size = UDim2.new(1,-20,0,30)
-nameBox.Position = UDim2.new(0,10,0,40)
-nameBox.PlaceholderText = "Target Player"
+nameBox.Size = UDim2.new(1,-20,0,32)
+nameBox.Position = UDim2.new(0,10,0,42)
+nameBox.PlaceholderText = "Target Name"
 nameBox.Text = ""
 nameBox.BackgroundColor3 = Color3.fromRGB(30,30,30)
 nameBox.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", nameBox)
 
-local lockBtn = btn("LOCK TARGET", 80)
-local unlockBtn = btn("UNLOCK TARGET", 120)
+local lockBtn   = btn("LOCK TARGET", 84)
+local modeBtn   = btn("MODE : BRUTAL", 128)
+local unlockBtn = btn("UNLOCK", 172)
 
--- ================= LOGIC =================
+-- ================= CORE =================
 local function findPlayer(name)
 	for _,p in pairs(Players:GetPlayers()) do
-		if string.lower(p.Name):sub(1,#name) == string.lower(name) then
+		if p ~= LocalPlayer and string.lower(p.Name):sub(1,#name) == string.lower(name) then
 			return p
 		end
 	end
 end
 
+local function clearVisual()
+	if highlight then highlight:Destroy() end
+	if beam then beam:Destroy() end
+	highlight, beam = nil, nil
+end
+
 local function stopLock()
-	if lockConn then
-		lockConn:Disconnect()
-		lockConn = nil
-	end
+	if lockConn then lockConn:Disconnect() end
+	lockConn = nil
 	lockedTarget = nil
+	clearVisual()
 	lockBtn.Text = "LOCK TARGET"
+end
+
+local function applyVisual(tHRP)
+	highlight = Instance.new("Highlight", tHRP.Parent)
+	highlight.FillColor = Color3.fromRGB(255,0,0)
+	highlight.OutlineTransparency = 1
+
+	beam = Instance.new("Beam", HRP)
+	local a0 = Instance.new("Attachment", HRP)
+	local a1 = Instance.new("Attachment", tHRP)
+	beam.Attachment0 = a0
+	beam.Attachment1 = a1
+	beam.Width0 = 0.15
+	beam.Width1 = 0.15
+	beam.Color = ColorSequence.new(Color3.fromRGB(255,50,50))
 end
 
 local function startLock(target)
@@ -89,8 +121,7 @@ local function startLock(target)
 
 	lockConn = RunService.RenderStepped:Connect(function()
 		pcall(function()
-			if not lockedTarget
-			or not lockedTarget.Character
+			if not lockedTarget.Character
 			or not lockedTarget.Character:FindFirstChild("HumanoidRootPart") then
 				stopLock()
 				return
@@ -98,57 +129,67 @@ local function startLock(target)
 
 			local tHRP = lockedTarget.Character.HumanoidRootPart
 
-			-- ===== ANTI COUNTER FLING =====
-			HRP.Velocity = Vector3.zero
-			HRP.RotVelocity = Vector3.zero
+			-- visual
+			if not highlight then
+				applyVisual(tHRP)
+			end
+
+			-- anti counter
+			HRP.AssemblyLinearVelocity = Vector3.zero
+			HRP.AssemblyAngularVelocity = Vector3.zero
 			Humanoid.PlatformStand = false
 
-			-- ===== PULL TARGET =====
-			local dir = (HRP.Position - tHRP.Position)
-			tHRP.Velocity = dir.Unit * PULL_FORCE
+			-- smooth lock pos
+			local desired = HRP.Position + HRP.CFrame.LookVector * CFG.LOCK_DISTANCE
+			tHRP.CFrame = tHRP.CFrame:Lerp(CFrame.new(desired), CFG.SMOOTHNESS)
 
-			-- ===== LOCK POS =====
-			tHRP.CFrame = CFrame.new(
-				HRP.Position + HRP.CFrame.LookVector * LOCK_DISTANCE
-			)
+			if CFG.MODE ~= "LOCK" then
+				local dir = (HRP.Position - tHRP.Position).Unit
+				tHRP.AssemblyLinearVelocity = dir * CFG.PULL_FORCE
+			end
 
-			-- ===== BRUTAL FLING =====
-			tHRP.Velocity = Vector3.new(
-				math.random(-FLING_FORCE,FLING_FORCE),
-				FLING_FORCE,
-				math.random(-FLING_FORCE,FLING_FORCE)
-			)
-
-			-- ===== SPIN TARGET =====
-			tHRP.RotVelocity = Vector3.new(
-				SPIN_FORCE,
-				SPIN_FORCE,
-				SPIN_FORCE
-			)
+			if CFG.MODE == "BRUTAL" then
+				tHRP.AssemblyLinearVelocity = Vector3.new(
+					math.random(-CFG.FLING_FORCE,CFG.FLING_FORCE),
+					CFG.FLING_FORCE,
+					math.random(-CFG.FLING_FORCE,CFG.FLING_FORCE)
+				)
+				tHRP.AssemblyAngularVelocity = Vector3.new(
+					CFG.SPIN_FORCE,
+					CFG.SPIN_FORCE,
+					CFG.SPIN_FORCE
+				)
+			end
 		end)
 	end)
 end
 
+-- ================= BUTTONS =================
 lockBtn.MouseButton1Click:Connect(function()
-	local target = findPlayer(nameBox.Text)
-	if not target or target == LocalPlayer then
-		lockBtn.Text = "TARGET INVALID"
-		task.delay(1,function()
-			lockBtn.Text = "LOCK TARGET"
-		end)
+	local t = findPlayer(nameBox.Text)
+	if not t then
+		lockBtn.Text = "INVALID TARGET"
+		task.delay(1,function() lockBtn.Text="LOCK TARGET" end)
 		return
 	end
-	startLock(target)
+	startLock(t)
 end)
 
-unlockBtn.MouseButton1Click:Connect(function()
-	stopLock()
+modeBtn.MouseButton1Click:Connect(function()
+	if CFG.MODE == "BRUTAL" then
+		CFG.MODE = "PULL"
+	elseif CFG.MODE == "PULL" then
+		CFG.MODE = "LOCK"
+	else
+		CFG.MODE = "BRUTAL"
+	end
+	modeBtn.Text = "MODE : "..CFG.MODE
 end)
+
+unlockBtn.MouseButton1Click:Connect(stopLock)
 
 -- Respawn Safe
 LocalPlayer.CharacterAdded:Connect(function(char)
-	Char = char
-	HRP = char:WaitForChild("HumanoidRootPart")
-	Humanoid = char:WaitForChild("Humanoid")
+	setupChar(char)
 	stopLock()
 end)
