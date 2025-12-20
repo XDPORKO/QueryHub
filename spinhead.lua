@@ -1,11 +1,12 @@
---// PULL / LOCK / FLING ++
---// Smart Client Abuse | Mobile Optimized | Visual Lock
+--// PULL / LOCK / FLING +++
+--// Infinite Spin | Auto Release | Silent | Head/Root Selector
+--// Client Abuse Version | Mobile Safe
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local LocalPlayer = Players.LocalPlayer
 
+-- ================= CHARACTER =================
 local Char, HRP, Humanoid
 local function setupChar(char)
 	Char = char
@@ -16,19 +17,29 @@ setupChar(LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait())
 
 -- ================= CONFIG =================
 local CFG = {
-	PULL_FORCE = 6e7,
-	FLING_FORCE = 8e8,
-	SPIN_FORCE = 7e7,
+	PULL_FORCE = 7e7,
+	BASE_FLING = 9e8,
+	MAX_FLING = 3e9,
+	SPIN_FORCE = 1.6e8,
 	LOCK_DISTANCE = 2.5,
-	SMOOTHNESS = 0.18,
-	MODE = "BRUTAL", -- PULL | LOCK | BRUTAL
+	SMOOTHNESS = 0.2,
+
+	SPIN_MULTIPLIER = 1.15,
+	FLING_CHARGE_RATE = 0.8,
+	MAX_CHARGE = 100,
+
+	AUTO_RELEASE = true,
+	SILENT = true,          -- no beam / highlight
+	TARGET_PART = "Root",   -- "Root" | "Head"
+
+	MODE = "BRUTAL"         -- LOCK | PULL | BRUTAL
 }
 
 -- ================= STATES =================
-local lockedTarget
-local lockConn
-local highlight
-local beam
+local lockedTarget = nil
+local lockConn = nil
+local flingCharge = 0
+local spinPower = CFG.SPIN_FORCE
 
 -- ================= UI =================
 local gui = Instance.new("ScreenGui", game.CoreGui)
@@ -57,7 +68,7 @@ end
 
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,0,0,32)
-title.Text = "LOCK / PULL / FLING ++"
+title.Text = "LOCK / PULL / FLING +++"
 title.Font = Enum.Font.GothamBold
 title.TextSize = 16
 title.TextColor3 = Color3.new(1,1,1)
@@ -74,7 +85,8 @@ Instance.new("UICorner", nameBox)
 
 local lockBtn   = btn("LOCK TARGET", 84)
 local modeBtn   = btn("MODE : BRUTAL", 128)
-local unlockBtn = btn("UNLOCK", 172)
+local partBtn   = btn("TARGET : ROOT", 172)
+local unlockBtn = btn("UNLOCK", 216)
 
 -- ================= CORE =================
 local function findPlayer(name)
@@ -85,33 +97,20 @@ local function findPlayer(name)
 	end
 end
 
-local function clearVisual()
-	if highlight then highlight:Destroy() end
-	if beam then beam:Destroy() end
-	highlight, beam = nil, nil
+local function getTargetPart(char)
+	if CFG.TARGET_PART == "Head" then
+		return char:FindFirstChild("Head")
+	end
+	return char:FindFirstChild("HumanoidRootPart")
 end
 
 local function stopLock()
 	if lockConn then lockConn:Disconnect() end
 	lockConn = nil
 	lockedTarget = nil
-	clearVisual()
+	flingCharge = 0
+	spinPower = CFG.SPIN_FORCE
 	lockBtn.Text = "LOCK TARGET"
-end
-
-local function applyVisual(tHRP)
-	highlight = Instance.new("Highlight", tHRP.Parent)
-	highlight.FillColor = Color3.fromRGB(255,0,0)
-	highlight.OutlineTransparency = 1
-
-	beam = Instance.new("Beam", HRP)
-	local a0 = Instance.new("Attachment", HRP)
-	local a1 = Instance.new("Attachment", tHRP)
-	beam.Attachment0 = a0
-	beam.Attachment1 = a1
-	beam.Width0 = 0.15
-	beam.Width1 = 0.15
-	beam.Color = ColorSequence.new(Color3.fromRGB(255,50,50))
 end
 
 local function startLock(target)
@@ -119,19 +118,18 @@ local function startLock(target)
 	lockedTarget = target
 	lockBtn.Text = "LOCKED : "..target.Name
 
-	lockConn = RunService.RenderStepped:Connect(function()
+	lockConn = RunService.RenderStepped:Connect(function(dt)
 		pcall(function()
-			if not lockedTarget.Character
-			or not lockedTarget.Character:FindFirstChild("HumanoidRootPart") then
+			if not lockedTarget.Character then
 				stopLock()
 				return
 			end
 
-			local tHRP = lockedTarget.Character.HumanoidRootPart
-
-			-- visual
-			if not highlight then
-				applyVisual(tHRP)
+			local char = lockedTarget.Character
+			local tPart = getTargetPart(char)
+			if not tPart then
+				stopLock()
+				return
 			end
 
 			-- anti counter
@@ -139,26 +137,46 @@ local function startLock(target)
 			HRP.AssemblyAngularVelocity = Vector3.zero
 			Humanoid.PlatformStand = false
 
-			-- smooth lock pos
+			-- lock position
 			local desired = HRP.Position + HRP.CFrame.LookVector * CFG.LOCK_DISTANCE
-			tHRP.CFrame = tHRP.CFrame:Lerp(CFrame.new(desired), CFG.SMOOTHNESS)
+			tPart.CFrame = tPart.CFrame:Lerp(CFrame.new(desired), CFG.SMOOTHNESS)
 
+			-- charge system
+			flingCharge = math.clamp(
+				flingCharge + (CFG.FLING_CHARGE_RATE * 60 * dt),
+				0,
+				CFG.MAX_CHARGE
+			)
+
+			local ratio = flingCharge / CFG.MAX_CHARGE
+			local flingPower = CFG.BASE_FLING + (CFG.MAX_FLING * ratio)
+
+			-- infinite spin
+			spinPower = spinPower * CFG.SPIN_MULTIPLIER
+			tPart.AssemblyAngularVelocity += Vector3.new(
+				spinPower * math.random(-1,1),
+				spinPower,
+				spinPower * math.random(-1,1)
+			)
+
+			-- pull
 			if CFG.MODE ~= "LOCK" then
-				local dir = (HRP.Position - tHRP.Position).Unit
-				tHRP.AssemblyLinearVelocity = dir * CFG.PULL_FORCE
+				local dir = (HRP.Position - tPart.Position).Unit
+				tPart.AssemblyLinearVelocity = dir * CFG.PULL_FORCE
 			end
 
+			-- brutal fling
 			if CFG.MODE == "BRUTAL" then
-				tHRP.AssemblyLinearVelocity = Vector3.new(
-					math.random(-CFG.FLING_FORCE,CFG.FLING_FORCE),
-					CFG.FLING_FORCE,
-					math.random(-CFG.FLING_FORCE,CFG.FLING_FORCE)
+				tPart.AssemblyLinearVelocity += Vector3.new(
+					math.random(-flingPower, flingPower),
+					flingPower * 1.2,
+					math.random(-flingPower, flingPower)
 				)
-				tHRP.AssemblyAngularVelocity = Vector3.new(
-					CFG.SPIN_FORCE,
-					CFG.SPIN_FORCE,
-					CFG.SPIN_FORCE
-				)
+			end
+
+			-- auto release
+			if CFG.AUTO_RELEASE and flingCharge >= CFG.MAX_CHARGE then
+				stopLock()
 			end
 		end)
 	end)
@@ -186,9 +204,19 @@ modeBtn.MouseButton1Click:Connect(function()
 	modeBtn.Text = "MODE : "..CFG.MODE
 end)
 
+partBtn.MouseButton1Click:Connect(function()
+	if CFG.TARGET_PART == "Root" then
+		CFG.TARGET_PART = "Head"
+		partBtn.Text = "TARGET : HEAD"
+	else
+		CFG.TARGET_PART = "Root"
+		partBtn.Text = "TARGET : ROOT"
+	end
+end)
+
 unlockBtn.MouseButton1Click:Connect(stopLock)
 
--- Respawn Safe
+-- ================= RESPAWN SAFE =================
 LocalPlayer.CharacterAdded:Connect(function(char)
 	setupChar(char)
 	stopLock()
