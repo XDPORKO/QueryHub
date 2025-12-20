@@ -9,7 +9,7 @@ local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
 local HRP = Character:WaitForChild("HumanoidRootPart")
 
 -- CONFIG
-local spinSpeed = 15
+local spinSpeed = 200
 local spinning = false
 local flingMode = false
 local spinConn
