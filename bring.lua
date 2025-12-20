@@ -1,36 +1,36 @@
+
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MarketplaceService = game:GetService("MarketplaceService")
+local RunService = game:GetService("RunService")
+
 local lp = Players.LocalPlayer
 
--- ================= MAP INFO =================
+-- ===== MAP INFO =====
 local mapName = "Unknown"
 pcall(function()
 	mapName = MarketplaceService:GetProductInfo(game.PlaceId).Name
 end)
 
--- ================= REMOTE SCAN =================
-local Remotes = {}
+-- ===== SCAN REMOTES =====
+local keywords = {"bring","teleport","tp","summon","pull","grab","warp"}
+local remotes = {}
 
-local function scanRemotes()
-	for _,v in ipairs(game:GetDescendants()) do
-		if v:IsA("RemoteEvent") then
-			table.insert(Remotes, v)
-		end
+for _,v in ipairs(game:GetDescendants()) do
+	if v:IsA("RemoteEvent") then
+		table.insert(remotes, v)
 	end
 end
-scanRemotes()
 
--- ================= GUI =================
+-- ===== GUI =====
 local gui = Instance.new("ScreenGui", lp.PlayerGui)
-gui.Name = "RemoteBringGUI"
+gui.Name = "AUTO_BRING_GUI"
 gui.ResetOnSpawn = false
 
 -- Floating Button
 local float = Instance.new("TextButton", gui)
 float.Size = UDim2.fromScale(0.18,0.08)
-float.Position = UDim2.fromScale(0.02,0.5)
-float.Text = "REMOTE"
+float.Position = UDim2.fromScale(0.02,0.45)
+float.Text = "AUTO"
 float.TextScaled = true
 float.BackgroundColor3 = Color3.fromRGB(20,20,20)
 float.TextColor3 = Color3.new(1,1,1)
@@ -40,113 +40,113 @@ Instance.new("UICorner", float).CornerRadius = UDim.new(0,14)
 
 -- Panel
 local panel = Instance.new("Frame", gui)
-panel.Size = UDim2.fromScale(0.9,0.7)
-panel.Position = UDim2.fromScale(0.05,0.15)
+panel.Size = UDim2.fromScale(0.92,0.6)
+panel.Position = UDim2.fromScale(0.04,0.2)
 panel.Visible = false
 panel.BackgroundColor3 = Color3.fromRGB(18,18,18)
 panel.Active = true
 panel.Draggable = true
 Instance.new("UICorner", panel).CornerRadius = UDim.new(0,18)
 
--- Title
-local title = Instance.new("TextLabel", panel)
-title.Size = UDim2.fromScale(1,0.08)
-title.BackgroundTransparency = 1
-title.TextScaled = true
-title.Font = Enum.Font.GothamBold
-title.TextColor3 = Color3.new(1,1,1)
-title.Text = "REMOTE EVENT SCANNER"
-
--- Info
-local info = Instance.new("TextLabel", panel)
-info.Size = UDim2.fromScale(1,0.06)
-info.Position = UDim2.fromScale(0,0.08)
-info.BackgroundTransparency = 1
-info.TextScaled = true
-info.Font = Enum.Font.Gotham
-info.TextColor3 = Color3.new(1,1,1)
-info.Text = "MAP: "..mapName.." | "..game.PlaceId
-
--- Selected Remote
-local selectedRemote
-local selectedLabel = Instance.new("TextLabel", panel)
-selectedLabel.Size = UDim2.fromScale(1,0.06)
-selectedLabel.Position = UDim2.fromScale(0,0.14)
-selectedLabel.BackgroundTransparency = 1
-selectedLabel.TextScaled = true
-selectedLabel.Font = Enum.Font.GothamBold
-selectedLabel.TextColor3 = Color3.fromRGB(0,255,0)
-selectedLabel.Text = "REMOTE: NONE"
-
--- Scroll
-local list = Instance.new("ScrollingFrame", panel)
-list.Size = UDim2.fromScale(0.9,0.4)
-list.Position = UDim2.fromScale(0.05,0.22)
-list.CanvasSize = UDim2.new(0,0,0,#Remotes*45)
-list.ScrollBarImageTransparency = 0.3
-
-local layout = Instance.new("UIListLayout", list)
-layout.Padding = UDim.new(0,6)
-
--- Remote Buttons
-for _,remote in ipairs(Remotes) do
-	local b = Instance.new("TextButton", list)
-	b.Size = UDim2.new(1,0,0,40)
-	b.Text = remote:GetFullName()
-	b.TextScaled = true
-	b.Font = Enum.Font.Gotham
-	b.BackgroundColor3 = Color3.fromRGB(40,40,40)
-	b.TextColor3 = Color3.new(1,1,1)
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
-
-	b.MouseButton1Click:Connect(function()
-		selectedRemote = remote
-		selectedLabel.Text = "REMOTE: "..remote.Name
-	end)
+local function label(text,y,h)
+	local l = Instance.new("TextLabel", panel)
+	l.Size = UDim2.fromScale(0.9,h)
+	l.Position = UDim2.fromScale(0.05,y)
+	l.BackgroundTransparency = 1
+	l.TextScaled = true
+	l.Font = Enum.Font.GothamBold
+	l.TextColor3 = Color3.new(1,1,1)
+	l.Text = text
+	return l
 end
 
--- Input
-local box = Instance.new("TextBox", panel)
-box.Size = UDim2.fromScale(0.9,0.08)
-box.Position = UDim2.fromScale(0.05,0.65)
-box.PlaceholderText = "Nama Player"
-box.TextScaled = true
-box.BackgroundColor3 = Color3.fromRGB(35,35,35)
-box.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", box).CornerRadius = UDim.new(0,10)
+label("AUTO REMOTE BRING",0.03,0.12)
+label("MAP: "..mapName,0.17,0.08)
+label("REMOTES FOUND: "..#remotes,0.25,0.08)
 
--- Bring Buttons
-local function makeBtn(text,x,callback)
+local status = label("STATUS: IDLE",0.35,0.1)
+local activeRemoteLabel = label("ACTIVE REMOTE: NONE",0.47,0.08)
+
+-- ===== AUTO TEST LOGIC =====
+local activeRemote = nil
+
+local function scoreRemote(remote)
+	local score = 0
+	local name = string.lower(remote.Name)
+	for _,k in ipairs(keywords) do
+		if string.find(name,k) then
+			score += 3
+		end
+	end
+	if string.find(name,"event") then score += 1 end
+	return score
+end
+
+local function autoDetect()
+	status.Text = "STATUS: SCANNING..."
+	local bestScore = 0
+	local bestRemote = nil
+
+	for _,r in ipairs(remotes) do
+		local s = scoreRemote(r)
+		if s > bestScore then
+			bestScore = s
+			bestRemote = r
+		end
+	end
+
+	if not bestRemote then
+		status.Text = "STATUS: NO REMOTE"
+		return
+	end
+
+	-- SAFE TEST
+	local ok = pcall(function()
+		bestRemote:FireServer()
+	end)
+
+	if ok then
+		activeRemote = bestRemote
+		status.Text = "STATUS: SUPPORTED"
+		status.TextColor3 = Color3.fromRGB(0,255,0)
+		activeRemoteLabel.Text = "ACTIVE: "..bestRemote:GetFullName()
+	else
+		status.Text = "STATUS: TEST FAILED"
+		status.TextColor3 = Color3.fromRGB(255,0,0)
+	end
+end
+
+-- ===== BUTTONS =====
+local function btn(text,y,cb)
 	local b = Instance.new("TextButton", panel)
-	b.Size = UDim2.fromScale(0.42,0.08)
-	b.Position = UDim2.fromScale(x,0.76)
+	b.Size = UDim2.fromScale(0.9,0.1)
+	b.Position = UDim2.fromScale(0.05,y)
 	b.Text = text
 	b.TextScaled = true
 	b.Font = Enum.Font.GothamBold
-	b.BackgroundColor3 = Color3.fromRGB(60,60,60)
+	b.BackgroundColor3 = Color3.fromRGB(55,55,55)
 	b.TextColor3 = Color3.new(1,1,1)
-	Instance.new("UICorner", b).CornerRadius = UDim.new(0,10)
-	b.MouseButton1Click:Connect(callback)
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0,12)
+	b.MouseButton1Click:Connect(cb)
 end
 
-makeBtn("BRING PLAYER",0.05,function()
-	if selectedRemote and box.Text ~= "" then
-		selectedRemote:FireServer("player", box.Text)
-	end
+btn("AUTO DETECT REMOTE",0.58,function()
+	autoDetect()
 end)
 
-makeBtn("BRING ALL",0.53,function()
-	if not selectedRemote then return end
+btn("BRING ALL PLAYERS",0.72,function()
+	if not activeRemote then return end
 	for _,plr in ipairs(Players:GetPlayers()) do
 		if plr ~= lp then
-			selectedRemote:FireServer("player", plr.Name)
+			activeRemote:FireServer("player", plr.Name)
+			task.wait(0.15)
 		end
 	end
 end)
 
--- Toggle
+-- ===== TOGGLE =====
 float.MouseButton1Click:Connect(function()
 	panel.Visible = not panel.Visible
 end)
 
-print("Loaded | Remotes:", #Remotes)
+print("AUTO BRING LOADED | Remotes:",#remotes)
