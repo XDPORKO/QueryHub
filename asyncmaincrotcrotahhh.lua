@@ -490,5 +490,3 @@ Rayfield:Notify({
 	Content = "Loaded Successfully (Universal)",
 	Duration = 4
 })
-
-Rayfield:LoadConfiguration()
