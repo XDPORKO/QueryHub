@@ -1,3 +1,11 @@
+pcall(function()
+	for _,v in ipairs(game:GetService("CoreGui"):GetChildren()) do
+		if v:IsA("ScreenGui") then
+			v:Destroy()
+		end
+	end
+end)
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
