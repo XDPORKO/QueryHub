@@ -1,4 +1,3 @@
---================ SERVICES =================
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
@@ -8,13 +7,11 @@ local CoreGui = game:GetService("CoreGui")
 local LP = Players.LocalPlayer
 if not LP then return end
 
---================ CHARACTER =================
 local Character = LP.Character or LP.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local RootPart = Character:WaitForChild("HumanoidRootPart")
 local Camera = Workspace.CurrentCamera
 
---================ UI LIB =================
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
@@ -38,7 +35,6 @@ local Tabs = {
 	Misc     = Window:CreateTab("Misc", 4483362458)
 }
 
---================ STATE =================
 local State = {
 	Fly = false,
 	Noclip = false,
@@ -50,10 +46,6 @@ local State = {
 	AntiFling = true,
 	FlySpeed = 70
 }
-
---==================================================
---================ FLY =============================
---==================================================
 
 local Attach = Instance.new("Attachment", RootPart)
 
@@ -122,10 +114,6 @@ Tabs.Movement:CreateSlider({
 	Callback = function(v) State.FlySpeed = v end
 })
 
---==================================================
---================ NOCLIP ==========================
---==================================================
-
 RunService.Stepped:Connect(function()
 	if State.Noclip and Character then
 		for _,v in ipairs(Character:GetDescendants()) do
@@ -141,10 +129,6 @@ Tabs.Movement:CreateToggle({
 	CurrentValue = false,
 	Callback = function(v) State.Noclip = v end
 })
-
---==================================================
---================ INVISIBLE =======================
---==================================================
 
 local function SetInvisible(on)
 	for _,v in ipairs(Character:GetDescendants()) do
@@ -162,10 +146,6 @@ Tabs.Player:CreateToggle({
 		SetInvisible(v)
 	end
 })
-
---==================================================
---================ ESP ADVANCED ====================
---==================================================
 
 local ESPFolder = Instance.new("Folder", CoreGui)
 ESPFolder.Name = "QueryESP"
@@ -215,10 +195,6 @@ Players.PlayerAdded:Connect(function(p)
 	if State.ESP then CreateESP(p) end
 end)
 
---==================================================
---================ PLAYER LIST + TP =================
---==================================================
-
 local SelectedPlayer = nil
 
 local function GetPlayers()
@@ -246,10 +222,6 @@ Tabs.Player:CreateButton({
 	end
 })
 
---==================================================
---================ CLICK TP ========================
---==================================================
-
 local ClickTP = false
 
 Tabs.Movement:CreateToggle({
@@ -268,10 +240,6 @@ UserInputService.InputBegan:Connect(function(i,g)
 		end
 	end
 end)
-
---==================================================
---================ WATER WALK ======================
---==================================================
 
 local WaterPart
 
@@ -299,10 +267,6 @@ Tabs.Movement:CreateToggle({
 	Callback = function(v) State.WaterWalk = v end
 })
 
---==================================================
---================ ANTI VOID / FALL =================
---==================================================
-
 RunService.RenderStepped:Connect(function()
 	if State.AntiVoid and RootPart.Position.Y < -80 then
 		RootPart.CFrame = CFrame.new(0,50,0)
@@ -313,19 +277,11 @@ RunService.RenderStepped:Connect(function()
 	end
 end)
 
---==================================================
---================ ANTI FLING ======================
---==================================================
-
 RunService.Heartbeat:Connect(function()
 	if State.AntiFling then
 		RootPart.AssemblyAngularVelocity = Vector3.zero
 	end
 end)
-
---==================================================
---================ ANTI KICK (CLIENT) ===============
---==================================================
 
 pcall(function()
 	local mt = getrawmetatable(game)
@@ -339,10 +295,6 @@ pcall(function()
 		return old(self,...)
 	end)
 end)
-
---==================================================
---================ INPUT ===========================
---==================================================
 
 UserInputService.InputBegan:Connect(function(i,g)
 	if g then return end
@@ -360,10 +312,6 @@ UserInputService.InputEnded:Connect(function(i)
 	if i.KeyCode == Enum.KeyCode.Space or i.KeyCode == Enum.KeyCode.LeftControl then Input.Y = 0 end
 end)
 
---==================================================
---================ RESPAWN FIX =====================
---==================================================
-
 LP.CharacterAdded:Connect(function(c)
 	task.wait(0.3)
 	Character = c
@@ -378,6 +326,6 @@ end)
 
 Rayfield:Notify({
 	Title = "Query Hub",
-	Content = "Loaded Successfully",
+	Content = "Succesfully Loaded Scripts",
 	Duration = 4
 })
