@@ -30,7 +30,7 @@ local Window = Rayfield:CreateWindow({
 	LoadingSubtitle = "Loading Modules...",
  Theme = "Default",
 	ConfigurationSaving = {
-		Enabled = true,
+		Enabled = false,
    FolderName = "QHubByRap",
 		FileName = "QueryHub"
 	}
