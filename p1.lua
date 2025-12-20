@@ -37,9 +37,9 @@ local State = {
     Fly = false,
     Speed = 16,
     Jump = 50,
-    CounterFling = false
-    BringLoop = false
-    SelectedTarget = nil
+    CounterFling = false,
+    BringLoop = false,
+    SelectedTarget = nil,
     Notifications = true
 }
 
@@ -119,48 +119,6 @@ local function btn(parent,y,text)
     Instance.new("UICorner", b).CornerRadius = UDim.new(0,12)
     return b
 end
-
-local lastSafeCFrame
-
-RunService.Heartbeat:Connect(function()
-    if not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = lp.Character.HumanoidRootPart
-
-    lastSafeCFrame = lastSafeCFrame or hrp.CFrame
-
-    if State.CounterFling then
-        if hrp.Velocity.Magnitude > 120 then
-            hrp.Velocity = Vector3.zero
-            hrp.CFrame = lastSafeCFrame
-
-            local attacker = getTarget()
-            if attacker then
-                attacker.Velocity = (attacker.Position - hrp.Position).Unit * State.Power
-            end
-        end
-    end
-
-    if hrp.Velocity.Magnitude < 80 then
-        lastSafeCFrame = hrp.CFrame
-    end
-end)
-
-local function bringTarget(target)
-    if not target or not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then return end
-    local hrp = lp.Character.HumanoidRootPart
-
-    for i = 1,5 do
-        target.CFrame = hrp.CFrame * CFrame.new(0,0,-3)
-        task.wait(0.05)
-    end
-end
-
-bringBtn.MouseButton1Click:Connect(function()
-    local t = getTarget()
-    if t then
-        bringTarget(t)
-    end
-end)
 
 --========================================================--
 -- ANTI KICK (FULL – UNTOUCHED + SAFE)
@@ -278,21 +236,48 @@ local bringAllBtn = btn(frames.TROLL,0.16,"BRING ALL : OFF")
 -- TARGET SYSTEM (AUTO NEAREST)
 --========================================================--
 local function getTarget()
+    if not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then return nil end
+
     local best, dist = nil, math.huge
-    if not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then return end
+    local myHRP = lp.Character.HumanoidRootPart
+
     for _,p in ipairs(Players:GetPlayers()) do
-        if p~=lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart")
-        and p.Character:FindFirstChild("Humanoid") and p.Character.Humanoid.Health>0 then
-            if State.TeamCheck and p.Team==lp.Team then continue end
-            local d = (p.Character.HumanoidRootPart.Position - lp.Character.HumanoidRootPart.Position).Magnitude
+        if p ~= lp and p.Character
+        and p.Character:FindFirstChild("HumanoidRootPart")
+        and p.Character:FindFirstChild("Humanoid")
+        and p.Character.Humanoid.Health > 0 then
+
+            if State.TeamCheck and p.Team == lp.Team then continue end
+
+            local hrp = p.Character.HumanoidRootPart
+            local d = (hrp.Position - myHRP.Position).Magnitude
+
             if d < dist then
                 dist = d
-                best = p.Character.HumanoidRootPart
+                best = hrp
             end
         end
     end
+
     return best
 end
+
+local function bringTarget(target)
+    if not target or not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = lp.Character.HumanoidRootPart
+
+    for i = 1,5 do
+        target.CFrame = hrp.CFrame * CFrame.new(0,0,-3)
+        task.wait(0.05)
+    end
+end
+
+bringBtn.MouseButton1Click:Connect(function()
+    local t = getTarget()
+    if t then
+        bringTarget(t)
+    end
+end)
 
 --========================================================--
 -- MAIN LOOP (NO FEATURE LOST)
@@ -304,24 +289,55 @@ RunService.Heartbeat:Connect(function()
     end
 
     if State.AutoFling and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-        local hrp = lp.Character.HumanoidRootPart
-        local t = getTarget()
-        if t then
-            if State.FlingMode=="Normal" then
-                hrp.CFrame = t.CFrame * CFrame.new(0,0,-2)
-                hrp.Velocity = (t.Position-hrp.Position).Unit * State.Power
-            elseif State.FlingMode=="Orbit" then
-                hrp.CFrame = t.CFrame * CFrame.Angles(0,tick()*5,0) * CFrame.new(0,0,4)
-            elseif State.FlingMode=="Tornado" then
-                hrp.Velocity = Vector3.new(0,State.Power,0)
-            end
+    local hrp = lp.Character.HumanoidRootPart
+    local t = getTarget()
+
+    if t then
+        if State.FlingMode == "Normal" then
+            hrp.CFrame = t.CFrame * CFrame.new(0,0,-2)
+            hrp.AssemblyLinearVelocity =
+                (t.Position - hrp.Position).Unit * State.Power
+
+        elseif State.FlingMode == "Orbit" then
+            hrp.CFrame =
+                t.CFrame * CFrame.Angles(0, tick()*4, 0) * CFrame.new(0,0,5)
+
+        elseif State.FlingMode == "Tornado" then
+            hrp.AssemblyLinearVelocity = Vector3.new(0, State.Power, 0)
         end
     end
+end
 
     if State.AntiVoid and lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
         if lp.Character.HumanoidRootPart.Position.Y < -60 then
             lp.Character.HumanoidRootPart.CFrame = CFrame.new(0,60,0)
         end
+    end
+end)
+
+local lastSafeCFrame
+
+RunService.Heartbeat:Connect(function()
+    if not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = lp.Character.HumanoidRootPart
+
+    lastSafeCFrame = lastSafeCFrame or hrp.CFrame
+
+    if State.CounterFling then
+        if hrp.AssemblyLinearVelocity.Magnitude > 120 then
+            hrp.AssemblyLinearVelocity = Vector3.new(0,0,0)
+            hrp.CFrame = lastSafeCFrame
+
+            local enemyHRP = getTarget()
+            if enemyHRP then
+                enemyHRP.AssemblyLinearVelocity =
+                    (enemyHRP.Position - hrp.Position).Unit * State.Power
+            end
+        end
+    end
+
+    if hrp.AssemblyLinearVelocity.Magnitude < 60 then
+        lastSafeCFrame = hrp.CFrame
     end
 end)
 
@@ -354,7 +370,7 @@ modeBtn.MouseButton1Click:Connect(function()
     modeBtn.Text = "MODE : "..string.upper(State.FlingMode)
 end)
 
-pUp.MouseButton1Click:Connect(function() State.Power += 200 end)
+pUp.MouseButton1Click:Connect(function() State.Power = State.Power + 200 end)
 pDn.MouseButton1Click:Connect(function() State.Power = math.max(200,State.Power-200) end)
 
 avBtn.MouseButton1Click:Connect(function()
