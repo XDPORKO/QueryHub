@@ -31,6 +31,7 @@ local Window = Rayfield:CreateWindow({
  Theme = "Default",
 	ConfigurationSaving = {
 		Enabled = true,
+   FolderName = "QHubByRap",
 		FileName = "QueryHub"
 	}
 })
@@ -485,3 +486,5 @@ Rayfield:Notify({
 	Content = "Loaded Successfully (Universal)",
 	Duration = 4
 })
+
+Rayfield:LoadConfiguration()
