@@ -3,30 +3,28 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local Workspace = game:GetService("Workspace")
 local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
 
 local LP = Players.LocalPlayer
 if not LP then return end
 
+local Camera = Workspace.CurrentCamera
 local Character = LP.Character or LP.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local RootPart = Character:WaitForChild("HumanoidRootPart")
-local Camera = Workspace.CurrentCamera
 
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
 	Name = "Query Hub",
- Icon = "rbxassetid://71212053414568",
-	LoadingTitle = "Universal Script • Simple UI",
-	LoadingSubtitle = "Develope By Rapp.proto.signal.cloud",
-Theme = "Ocean",
+	Icon = "rbxassetid://71212053414568",
+	LoadingTitle = "Query Hub Universal",
+	LoadingSubtitle = "Loading Modules...",
+	Theme = "Ocean",
 	ConfigurationSaving = {
 		Enabled = true,
 		FileName = "QueryHub"
-	},
-   DisableRayfieldPrompts = false,
-   DisableBuildWarnings = false,
-	  KeySystem = false
+	}
 })
 
 local Tabs = {
@@ -45,21 +43,24 @@ local State = {
 	AntiVoid = true,
 	AntiFall = true,
 	AntiFling = true,
-	FlySpeed = 70
+	FlySpeed = 70,
+	WalkSpeed = 16,
+	JumpHold = false,
+	Spectate = false
 }
 
 local Attach = Instance.new("Attachment", RootPart)
 
 local LV = Instance.new("LinearVelocity", RootPart)
 LV.Attachment0 = Attach
-LV.RelativeTo = Enum.ActuatorRelativeTo.World
 LV.MaxForce = math.huge
+LV.RelativeTo = Enum.ActuatorRelativeTo.World
 LV.Enabled = false
 
 local AO = Instance.new("AlignOrientation", RootPart)
 AO.Attachment0 = Attach
-AO.Responsiveness = 200
 AO.MaxTorque = math.huge
+AO.Responsiveness = 200
 AO.RigidityEnabled = true
 AO.Enabled = false
 
@@ -88,7 +89,6 @@ local function ToggleFly(v)
 		AO.Enabled = false
 		LV.VectorVelocity = Vector3.zero
 		Humanoid.AutoRotate = true
-		State.Noclip = false
 	end
 end
 
@@ -96,27 +96,26 @@ RunService.RenderStepped:Connect(function()
 	if State.Fly then
 		local dir = MoveDir()
 		local vel = dir.Magnitude > 0 and dir.Unit * State.FlySpeed or Vector3.zero
-		LV.VectorVelocity = LV.VectorVelocity:Lerp(vel, 0.25)
+		LV.VectorVelocity = LV.VectorVelocity:Lerp(vel, 0.3)
 		AO.CFrame = Camera.CFrame
 	end
 end)
 
 Tabs.Movement:CreateToggle({
 	Name = "Fly",
-	CurrentValue = false,
 	Callback = ToggleFly
 })
 
 Tabs.Movement:CreateSlider({
 	Name = "Fly Speed",
-	Range = {30,120},
+	Range = {30,150},
 	Increment = 5,
 	CurrentValue = 70,
 	Callback = function(v) State.FlySpeed = v end
 })
 
 RunService.Stepped:Connect(function()
-	if State.Noclip and Character then
+	if State.Noclip then
 		for _,v in ipairs(Character:GetDescendants()) do
 			if v:IsA("BasePart") then
 				v.CanCollide = false
@@ -127,7 +126,6 @@ end)
 
 Tabs.Movement:CreateToggle({
 	Name = "Noclip",
-	CurrentValue = false,
 	Callback = function(v) State.Noclip = v end
 })
 
@@ -141,18 +139,45 @@ end
 
 Tabs.Player:CreateToggle({
 	Name = "Invisible",
-	CurrentValue = false,
 	Callback = function(v)
 		State.Invisible = v
 		SetInvisible(v)
 	end
 })
 
+Tabs.Player:CreateSlider({
+	Name = "WalkSpeed",
+	Range = {16,60},
+	Increment = 1,
+	CurrentValue = 16,
+	Callback = function(v)
+		State.WalkSpeed = v
+		Humanoid.WalkSpeed = v
+	end
+})
+
+Tabs.Player:CreateToggle({
+	Name = "Hold Jump (No Rocket)",
+	Callback = function(v)
+		State.JumpHold = v
+	end
+})
+
+RunService.Heartbeat:Connect(function()
+	if State.JumpHold and Humanoid.Jump then
+		RootPart.Velocity = Vector3.new(
+			RootPart.Velocity.X,
+			math.clamp(RootPart.Velocity.Y, -10, 35),
+			RootPart.Velocity.Z
+		)
+	end
+end)
+
 local ESPFolder = Instance.new("Folder", CoreGui)
 ESPFolder.Name = "QueryESP"
 
 local function ClearESP()
-	for _,v in pairs(ESPFolder:GetChildren()) do v:Destroy() end
+	for _,v in ipairs(ESPFolder:GetChildren()) do v:Destroy() end
 end
 
 local function CreateESP(plr)
@@ -160,18 +185,19 @@ local function CreateESP(plr)
 
 	local function Apply(char)
 		if not State.ESP then return end
+		local hrp = char:WaitForChild("HumanoidRootPart",5)
+		if not hrp then return end
 
 		local hl = Instance.new("Highlight", ESPFolder)
 		hl.Adornee = char
 		hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		hl.FillTransparency = 0.4
 
 		if plr.Team ~= LP.Team then
 			hl.FillColor = Color3.fromRGB(255,80,80)
 		else
 			hl.FillColor = Color3.fromRGB(80,255,80)
 		end
-
-		hl.FillTransparency = 0.5
 	end
 
 	if plr.Character then Apply(plr.Character) end
@@ -179,8 +205,7 @@ local function CreateESP(plr)
 end
 
 Tabs.Visual:CreateToggle({
-	Name = "ESP (Team Color)",
-	CurrentValue = false,
+	Name = "ESP (Team + Distance)",
 	Callback = function(v)
 		State.ESP = v
 		ClearESP()
@@ -196,19 +221,19 @@ Players.PlayerAdded:Connect(function(p)
 	if State.ESP then CreateESP(p) end
 end)
 
-local SelectedPlayer = nil
+local SelectedPlayer
 
-local function GetPlayers()
+local function RefreshPlayers()
 	local t = {}
 	for _,p in ipairs(Players:GetPlayers()) do
-		if p ~= LP then table.insert(t, p.Name) end
+		if p ~= LP then table.insert(t,p.Name) end
 	end
 	return t
 end
 
 Tabs.Player:CreateDropdown({
 	Name = "Player List",
-	Options = GetPlayers(),
+	Options = RefreshPlayers(),
 	Callback = function(v)
 		SelectedPlayer = Players:FindFirstChild(v)
 	end
@@ -217,17 +242,31 @@ Tabs.Player:CreateDropdown({
 Tabs.Player:CreateButton({
 	Name = "Teleport To Player",
 	Callback = function()
-		if SelectedPlayer and SelectedPlayer.Character and SelectedPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		if SelectedPlayer and SelectedPlayer.Character then
 			RootPart.CFrame = SelectedPlayer.Character.HumanoidRootPart.CFrame * CFrame.new(0,0,3)
 		end
 	end
 })
 
-local ClickTP = false
+Tabs.Player:CreateButton({
+	Name = "Spectate Player",
+	Callback = function()
+		if SelectedPlayer and SelectedPlayer.Character then
+			Camera.CameraSubject = SelectedPlayer.Character:FindFirstChild("Humanoid")
+		end
+	end
+})
 
+Tabs.Player:CreateButton({
+	Name = "Stop Spectate",
+	Callback = function()
+		Camera.CameraSubject = Humanoid
+	end
+})
+
+local ClickTP = false
 Tabs.Movement:CreateToggle({
 	Name = "Click TP",
-	CurrentValue = false,
 	Callback = function(v) ClickTP = v end
 })
 
@@ -235,46 +274,19 @@ UserInputService.InputBegan:Connect(function(i,g)
 	if g then return end
 	if ClickTP and i.UserInputType == Enum.UserInputType.MouseButton1 then
 		local ray = Camera:ScreenPointToRay(i.Position.X, i.Position.Y)
-		local hit = Workspace:Raycast(ray.Origin, ray.Direction*500)
+		local hit = Workspace:Raycast(ray.Origin, ray.Direction*800)
 		if hit then
 			RootPart.CFrame = CFrame.new(hit.Position + Vector3.new(0,3,0))
 		end
 	end
 end)
 
-local WaterPart
-
 RunService.RenderStepped:Connect(function()
-	if State.WaterWalk then
-		local ray = Workspace:Raycast(RootPart.Position, Vector3.new(0,-6,0))
-		if ray and ray.Material == Enum.Material.Water then
-			if not WaterPart then
-				WaterPart = Instance.new("Part", Workspace)
-				WaterPart.Anchored = true
-				WaterPart.Size = Vector3.new(25,1,25)
-				WaterPart.Transparency = 1
-			end
-			WaterPart.CFrame = CFrame.new(ray.Position + Vector3.new(0,1,0))
-		elseif WaterPart then
-			WaterPart:Destroy()
-			WaterPart = nil
-		end
+	if State.AntiVoid and RootPart.Position.Y < -90 then
+		RootPart.CFrame = CFrame.new(0,60,0)
 	end
-end)
-
-Tabs.Movement:CreateToggle({
-	Name = "Walk On Water",
-	CurrentValue = false,
-	Callback = function(v) State.WaterWalk = v end
-})
-
-RunService.RenderStepped:Connect(function()
-	if State.AntiVoid and RootPart.Position.Y < -80 then
-		RootPart.CFrame = CFrame.new(0,50,0)
-	end
-
 	if State.AntiFall and RootPart.AssemblyLinearVelocity.Y < -120 then
-		RootPart.AssemblyLinearVelocity = Vector3.new(0,-30,0)
+		RootPart.AssemblyLinearVelocity = Vector3.new(0,-25,0)
 	end
 end)
 
@@ -282,35 +294,6 @@ RunService.Heartbeat:Connect(function()
 	if State.AntiFling then
 		RootPart.AssemblyAngularVelocity = Vector3.zero
 	end
-end)
-
-pcall(function()
-	local mt = getrawmetatable(game)
-	setreadonly(mt,false)
-	local old = mt.__namecall
-	mt.__namecall = newcclosure(function(self,...)
-		local m = getnamecallmethod()
-		if tostring(m) == "Kick" then
-			return
-		end
-		return old(self,...)
-	end)
-end)
-
-UserInputService.InputBegan:Connect(function(i,g)
-	if g then return end
-	if i.KeyCode == Enum.KeyCode.W then Input.Z = 1 end
-	if i.KeyCode == Enum.KeyCode.S then Input.Z = -1 end
-	if i.KeyCode == Enum.KeyCode.A then Input.X = -1 end
-	if i.KeyCode == Enum.KeyCode.D then Input.X = 1 end
-	if i.KeyCode == Enum.KeyCode.Space then Input.Y = 1 end
-	if i.KeyCode == Enum.KeyCode.LeftControl then Input.Y = -1 end
-end)
-
-UserInputService.InputEnded:Connect(function(i)
-	if i.KeyCode == Enum.KeyCode.W or i.KeyCode == Enum.KeyCode.S then Input.Z = 0 end
-	if i.KeyCode == Enum.KeyCode.A or i.KeyCode == Enum.KeyCode.D then Input.X = 0 end
-	if i.KeyCode == Enum.KeyCode.Space or i.KeyCode == Enum.KeyCode.LeftControl then Input.Y = 0 end
 end)
 
 LP.CharacterAdded:Connect(function(c)
@@ -321,12 +304,13 @@ LP.CharacterAdded:Connect(function(c)
 	Attach.Parent = RootPart
 	LV.Parent = RootPart
 	AO.Parent = RootPart
+	Humanoid.WalkSpeed = State.WalkSpeed
 	if State.Invisible then SetInvisible(true) end
 	if State.Fly then ToggleFly(true) end
 end)
 
 Rayfield:Notify({
 	Title = "Query Hub",
-	Content = "Succesfully Loaded Scripts",
+	Content = "Loaded Successfully (Universal)",
 	Duration = 4
 })
