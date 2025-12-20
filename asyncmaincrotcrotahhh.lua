@@ -1,171 +1,160 @@
---================ SAFE SERVICES =================
+--================ DELTA SAFE =================
 local Players = game:GetService("Players")
-local UIS = game:GetService("UserInputService")
 local RS = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
 local WS = game:GetService("Workspace")
 
 local LP = Players.LocalPlayer
 if not LP then return end
 
-local CoreGui = gethui and gethui() or game:GetService("CoreGui")
-local Camera = WS:FindFirstChildOfClass("Camera") or WS:WaitForChild("Camera")
-
---================ UI LOADER =================
-local Fluent
-do
-	local ok, lib = pcall(function()
-		return loadstring(game:HttpGet(
-			"https://raw.githubusercontent.com/dawid-scripts/Fluent/main/source.lua"
-		))()
-	end)
-	if not ok then
-		warn("Fluent gagal load (HttpGet blocked)")
-		return
-	end
-	Fluent = lib
+local function WaitChar()
+	local c = LP.Character or LP.CharacterAdded:Wait()
+	return c, c:WaitForChild("Humanoid"), c:WaitForChild("HumanoidRootPart")
 end
 
---================ WINDOW =================
+local Character, Humanoid, RootPart = WaitChar()
+
+local Camera
+repeat
+	Camera = WS:FindFirstChildOfClass("Camera")
+	task.wait()
+until Camera
+
+--================ UI =================
+local Fluent = loadstring(game:HttpGet(
+	"https://raw.githubusercontent.com/dawid-scripts/Fluent/main/source.lua"
+))()
+
 local Window = Fluent:CreateWindow({
 	Title = "Query Hub",
-	SubTitle = "Universal | All Executor",
-	Size = UDim2.fromOffset(540,460),
-	Acrylic = true,
+	SubTitle = "Delta Stable",
+	Size = UDim2.fromOffset(500,420),
 	Theme = "Dark",
 	MinimizeKey = Enum.KeyCode.RightControl
 })
 
 local Tabs = {
-	Move   = Window:AddTab({Title="Movement",Icon="rocket"}),
+	Movement = Window:AddTab({Title="Movement",Icon="rocket"}),
 	Player = Window:AddTab({Title="Player",Icon="user"}),
 	Visual = Window:AddTab({Title="Visual",Icon="eye"})
 }
 
---================ CHARACTER =================
-local Character, Humanoid, RootPart
-
-local function BindCharacter(char)
-	Character = char
-	Humanoid = char:WaitForChild("Humanoid")
-	RootPart = char:WaitForChild("HumanoidRootPart")
-end
-
-BindCharacter(LP.Character or LP.CharacterAdded:Wait())
-
-LP.CharacterAdded:Connect(function(char)
-	task.wait(0.25)
-	BindCharacter(char)
-end)
-
 --================ STATE =================
 local State = {
-	Fly=false, Noclip=false, Invisible=false,
-	FlySpeed=70, JumpHold=false,
-	AntiVoid=true, WalkWater=false, AntiFall=true
+	Fly = false,
+	Speed = 55,
+	Invisible = false
 }
 
---================ FLY CORE =================
-local Attach = Instance.new("Attachment")
-local LV = Instance.new("LinearVelocity")
-local AO = Instance.new("AlignOrientation")
+--================ FLY =================
+local BV = Instance.new("BodyVelocity")
+BV.MaxForce = Vector3.new(1e8,1e8,1e8)
 
-local function SetupFly()
-	Attach.Parent = RootPart
-
-	LV.Attachment0 = Attach
-	LV.MaxForce = math.huge
-	LV.RelativeTo = Enum.ActuatorRelativeTo.World
-	LV.Enabled = false
-	LV.Parent = RootPart
-
-	AO.Attachment0 = Attach
-	AO.MaxTorque = math.huge
-	AO.Responsiveness = 200
-	AO.RigidityEnabled = true
-	AO.Enabled = false
-	AO.Parent = RootPart
-end
-
-SetupFly()
-
-local Input={X=0,Y=0,Z=0}
-local IsMobile = UIS.TouchEnabled and not UIS.KeyboardEnabled
-
-local function MoveDir()
-	if IsMobile then
-		local d = Humanoid.MoveDirection
-		return Vector3.new(d.X, Input.Y, d.Z)
-	end
-	return Camera.CFrame.LookVector*Input.Z
-		+ Camera.CFrame.RightVector*Input.X
-		+ Vector3.new(0,Input.Y,0)
-end
+local BG = Instance.new("BodyGyro")
+BG.MaxTorque = Vector3.new(1e8,1e8,1e8)
+BG.P = 8e4
 
 local function ToggleFly(v)
-	State.Fly=v
+	State.Fly = v
 	if v then
-		Humanoid.AutoRotate=false
-		LV.Enabled=true
-		AO.Enabled=true
-		State.Noclip=true
+		BV.Parent = RootPart
+		BG.Parent = RootPart
+		Humanoid.AutoRotate = false
 	else
-		LV.Enabled=false
-		LV.VectorVelocity=Vector3.zero
-		AO.Enabled=false
-		Humanoid.AutoRotate=true
-		State.Noclip=false
+		BV.Parent = nil
+		BG.Parent = nil
+		Humanoid.AutoRotate = true
 	end
 end
 
 RS.RenderStepped:Connect(function()
-	if State.Fly and RootPart then
-		local d=MoveDir()
-		local t=d.Magnitude>0 and d.Unit*State.FlySpeed or Vector3.zero
-		LV.VectorVelocity=LV.VectorVelocity:Lerp(t,0.25)
-		AO.CFrame=Camera.CFrame
+	if State.Fly then
+		local md = Humanoid.MoveDirection
+		BV.Velocity =
+			(Camera.CFrame.LookVector * md.Z +
+			 Camera.CFrame.RightVector * md.X) * State.Speed
+		BG.CFrame = Camera.CFrame
 	end
 end)
 
---================ NOCLIP =================
-RS.Stepped:Connect(function()
-	if State.Noclip and Character then
-		for _,p in ipairs(Character:GetDescendants()) do
-			if p:IsA("BasePart") then p.CanCollide=false end
-		end
+Tabs.Movement:AddToggle("Fly",{
+	Title="Fly",
+	Default=false,
+	Callback=ToggleFly
+})
+
+Tabs.Movement:AddSlider("Speed",{
+	Title="Fly Speed",
+	Min=30,
+	Max=100,
+	Default=55,
+	Callback=function(v)
+		State.Speed = v
 	end
-end)
+})
 
 --================ INVISIBLE =================
-local function SetInvisible(on)
-	for _,v in ipairs(Character:GetDescendants()) do
-		if v:IsA("BasePart") or v:IsA("Decal") then
-			v.LocalTransparencyModifier = on and 1 or 0
+local function Invisible(v)
+	for _,p in ipairs(Character:GetDescendants()) do
+		if p:IsA("BasePart") or p:IsA("Decal") then
+			p.LocalTransparencyModifier = v and 1 or 0
 		end
 	end
 end
 
---================ UI BINDS =================
-Tabs.Move:AddToggle("Fly",{Title="Fly",Default=false,Callback=ToggleFly})
-Tabs.Move:AddSlider("FlySpeed",{Title="Fly Speed",Min=30,Max=100,Default=70,
-	Callback=function(v) State.FlySpeed=v end})
-
-Tabs.Player:AddToggle("Invisible",{Title="Invisible",Default=false,
-	Callback=function(v) State.Invisible=v SetInvisible(v) end})
-
-Tabs.Move:AddToggle("AntiVoid",{Title="Anti Void",Default=true,
-	Callback=function(v) State.AntiVoid=v end})
-
---================ ANTI VOID =================
-RS.RenderStepped:Connect(function()
-	if State.AntiVoid and RootPart and RootPart.Position.Y<-80 then
-		RootPart.CFrame=CFrame.new(0,60,0)
-		RootPart.AssemblyLinearVelocity=Vector3.zero
+Tabs.Player:AddToggle("Invisible",{
+	Title="Invisible",
+	Default=false,
+	Callback=function(v)
+		State.Invisible = v
+		Invisible(v)
 	end
+})
+
+--================ ESP =================
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Parent = game:GetService("CoreGui")
+
+local function ClearESP()
+	for _,v in ipairs(ESPFolder:GetChildren()) do v:Destroy() end
+end
+
+local function AddESP(plr)
+	if plr == LP then return end
+	local function apply(char)
+		local hl = Instance.new("Highlight")
+		hl.Adornee = char
+		hl.FillColor = Color3.fromRGB(0,255,180)
+		hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		hl.Parent = ESPFolder
+	end
+	if plr.Character then apply(plr.Character) end
+	plr.CharacterAdded:Connect(apply)
+end
+
+Tabs.Visual:AddToggle("ESP",{
+	Title="ESP",
+	Default=false,
+	Callback=function(v)
+		ClearESP()
+		if v then
+			for _,p in ipairs(Players:GetPlayers()) do
+				AddESP(p)
+			end
+		end
+	end
+})
+
+--================ RESPAWN =================
+LP.CharacterAdded:Connect(function()
+	task.wait(0.3)
+	Character, Humanoid, RootPart = WaitChar()
+	if State.Fly then ToggleFly(true) end
+	if State.Invisible then Invisible(true) end
 end)
 
---================ NOTIFY =================
 Fluent:Notify({
 	Title="Query Hub",
-	Content="Loaded Successfully",
-	Duration=4
+	Content="Loaded (Delta Safe)",
+	Duration=3
 })
