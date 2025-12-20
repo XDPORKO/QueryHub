@@ -19,13 +19,16 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
 	Name = "Query Hub",
+ Icon = "rbxassetid://71212053414568",
 	LoadingTitle = "Query Hub",
 	LoadingSubtitle = "Universal Script",
 	ConfigurationSaving = {
 		Enabled = true,
 		FileName = "QueryHub"
 	},
-	KeySystem = false
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false,
+	  KeySystem = false
 })
 
 local Tabs = {
