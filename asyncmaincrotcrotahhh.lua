@@ -309,6 +309,169 @@ LP.CharacterAdded:Connect(function(c)
 	if State.Fly then ToggleFly(true) end
 end)
 
+local TrackerFolder = Instance.new("Folder", CoreGui)
+TrackerFolder.Name = "QueryTracker"
+
+local TrackerEnabled = false
+local TrackerBillboards = {}
+
+local function ClearTracker()
+	for _,v in pairs(TrackerBillboards) do
+		v:Destroy()
+	end
+	table.clear(TrackerBillboards)
+end
+
+local function CreateTracker(plr)
+	if plr == LP then return end
+
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "Tracker_"..plr.Name
+	bb.Size = UDim2.new(0,40,0,40)
+	bb.AlwaysOnTop = true
+	bb.Parent = TrackerFolder
+
+	local img = Instance.new("ImageLabel", bb)
+	img.Size = UDim2.new(1,0,1,0)
+	img.BackgroundTransparency = 1
+	img.Image = "rbxassetid://6031094678"
+
+	TrackerBillboards[plr] = bb
+
+	RunService.RenderStepped:Connect(function()
+		if not TrackerEnabled then return end
+		if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
+			bb.Enabled = false
+			return
+		end
+
+		bb.Enabled = true
+		bb.Adornee = plr.Character.HumanoidRootPart
+
+		local dir = (plr.Character.HumanoidRootPart.Position - Camera.CFrame.Position).Unit
+		local look = Camera.CFrame.LookVector
+		local angle = math.atan2(dir.X, dir.Z) - math.atan2(look.X, look.Z)
+
+		img.Rotation = math.deg(angle)
+	end)
+end
+
+Tabs.Visual:CreateToggle({
+	Name = "Player Tracker Arrow",
+	CurrentValue = false,
+	Callback = function(v)
+		TrackerEnabled = v
+		ClearTracker()
+		if v then
+			for _,p in ipairs(Players:GetPlayers()) do
+				CreateTracker(p)
+			end
+		end
+	end
+})
+
+Players.PlayerAdded:Connect(function(p)
+	if TrackerEnabled then
+		task.wait(1)
+		CreateTracker(p)
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+	if TrackerBillboards[p] then
+		TrackerBillboards[p]:Destroy()
+		TrackerBillboards[p] = nil
+	end
+end)
+
+local ESP_Advanced = {}
+local ESPAdvancedEnabled = false
+
+local function ClearAdvancedESP()
+	for _,v in pairs(ESP_Advanced) do
+		v.Box:Destroy()
+	end
+	table.clear(ESP_Advanced)
+end
+
+local function CreateAdvancedESP(plr)
+	if plr == LP then return end
+
+	local box = Instance.new("BillboardGui")
+	box.Size = UDim2.new(4,0,5,0)
+	box.AlwaysOnTop = true
+	box.Name = "ESP_ADV_"..plr.Name
+	box.Parent = CoreGui
+
+	local frame = Instance.new("Frame", box)
+	frame.Size = UDim2.new(1,0,1,0)
+	frame.BackgroundTransparency = 1
+	frame.BorderSizePixel = 2
+
+	local text = Instance.new("TextLabel", box)
+	text.Size = UDim2.new(1,0,0.3,0)
+	text.Position = UDim2.new(0,0,-0.35,0)
+	text.BackgroundTransparency = 1
+	text.TextScaled = true
+	text.Font = Enum.Font.GothamBold
+	text.TextColor3 = Color3.new(1,1,1)
+
+	ESP_Advanced[plr] = {Box = box, Text = text, Frame = frame}
+
+	RunService.RenderStepped:Connect(function()
+		if not ESPAdvancedEnabled then
+			box.Enabled = false
+			return
+		end
+
+		if not plr.Character or not plr.Character:FindFirstChild("HumanoidRootPart") then
+			box.Enabled = false
+			return
+		end
+
+		local hrp = plr.Character.HumanoidRootPart
+		box.Enabled = true
+		box.Adornee = hrp
+
+		local dist = math.floor((RootPart.Position - hrp.Position).Magnitude)
+		text.Text = plr.Name.." | "..dist.." studs"
+
+		if plr.Team ~= LP.Team then
+			frame.BorderColor3 = Color3.fromRGB(255,80,80)
+		else
+			frame.BorderColor3 = Color3.fromRGB(80,255,80)
+		end
+	end)
+end
+
+Tabs.Visual:CreateToggle({
+	Name = "ESP Advanced (Box + Name + Distance)",
+	CurrentValue = false,
+	Callback = function(v)
+		ESPAdvancedEnabled = v
+		ClearAdvancedESP()
+		if v then
+			for _,p in ipairs(Players:GetPlayers()) do
+				CreateAdvancedESP(p)
+			end
+		end
+	end
+})
+
+Players.PlayerAdded:Connect(function(p)
+	if ESPAdvancedEnabled then
+		task.wait(1)
+		CreateAdvancedESP(p)
+	end
+end)
+
+Players.PlayerRemoving:Connect(function(p)
+	if ESP_Advanced[p] then
+		ESP_Advanced[p].Box:Destroy()
+		ESP_Advanced[p] = nil
+	end
+end)
+
 Rayfield:Notify({
 	Title = "Query Hub",
 	Content = "Loaded Successfully (Universal)",
