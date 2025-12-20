@@ -1,3 +1,9 @@
+if getgenv().QUERY_HUB_LOADED then
+    warn("[Query Hub] Script already loaded!")
+    return
+end
+getgenv().QUERY_HUB_LOADED = true
+
 for _,v in ipairs(CoreGui:GetChildren()) do
 	if v:IsA("ScreenGui") and v.Name:find("Rayfield") or v.Name:find("Query") then
 		v:Destroy()
