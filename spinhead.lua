@@ -1,134 +1,126 @@
---// Spin Body Mobile Support
+--// Spin + Fling + TP Player (Mobile)
 --// Universal LocalScript
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
 
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local hrp = character:WaitForChild("HumanoidRootPart")
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local HRP = Character:WaitForChild("HumanoidRootPart")
 
--- ===== CONFIG =====
-local spinSpeed = 10 -- default speed
+-- CONFIG
+local spinSpeed = 15
 local spinning = false
-local spinConnection
--- ==================
+local flingMode = false
+local spinConn
 
--- ===== UI =====
-local gui = Instance.new("ScreenGui")
-gui.Name = "SpinMobileUI"
+-- ================= UI =================
+local gui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+gui.Name = "QueryV0.1"
 gui.ResetOnSpawn = false
-gui.Parent = game:GetService("CoreGui")
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 200, 0, 140)
-frame.Position = UDim2.new(0, 20, 0.5, -70)
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0,230,0,260)
+frame.Position = UDim2.new(0,20,0.45,0)
 frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
-frame.BackgroundTransparency = 0.1
 frame.BorderSizePixel = 0
-frame.Parent = gui
 frame.Active = true
 frame.Draggable = true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,16)
 
-local corner = Instance.new("UICorner", frame)
-corner.CornerRadius = UDim.new(0, 16)
+local function makeBtn(text, y)
+	local b = Instance.new("TextButton", frame)
+	b.Size = UDim2.new(1,-20,0,36)
+	b.Position = UDim2.new(0,10,0,y)
+	b.Text = text
+	b.Font = Enum.Font.GothamBold
+	b.TextSize = 14
+	b.TextColor3 = Color3.new(1,1,1)
+	b.BackgroundColor3 = Color3.fromRGB(45,45,45)
+	Instance.new("UICorner", b)
+	return b
+end
 
-local title = Instance.new("TextLabel")
+local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,0,0,30)
-title.Text = "SPIN BODY"
-title.TextColor3 = Color3.new(1,1,1)
-title.BackgroundTransparency = 1
+title.Text = "SPIN / FLING / TP"
 title.Font = Enum.Font.GothamBold
 title.TextSize = 16
-title.Parent = frame
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundTransparency = 1
 
--- Toggle Button
-local toggle = Instance.new("TextButton")
-toggle.Size = UDim2.new(1,-20,0,40)
-toggle.Position = UDim2.new(0,10,0,40)
-toggle.Text = "SPIN : OFF"
-toggle.BackgroundColor3 = Color3.fromRGB(40,40,40)
-toggle.TextColor3 = Color3.new(1,1,1)
-toggle.Font = Enum.Font.GothamBold
-toggle.TextSize = 14
-toggle.Parent = frame
-Instance.new("UICorner", toggle)
+local spinBtn = makeBtn("SPIN : OFF", 35)
+local flingBtn = makeBtn("FLING : OFF", 80)
+local speedBtn = makeBtn("SPEED : 15", 125)
 
--- Speed Label
-local speedLabel = Instance.new("TextLabel")
-speedLabel.Size = UDim2.new(1,0,0,20)
-speedLabel.Position = UDim2.new(0,0,0,85)
-speedLabel.Text = "Speed: "..spinSpeed
-speedLabel.BackgroundTransparency = 1
-speedLabel.TextColor3 = Color3.new(1,1,1)
-speedLabel.Font = Enum.Font.Gotham
-speedLabel.TextSize = 13
-speedLabel.Parent = frame
+local nameBox = Instance.new("TextBox", frame)
+nameBox.Size = UDim2.new(1,-20,0,32)
+nameBox.Position = UDim2.new(0,10,0,170)
+nameBox.PlaceholderText = "Player Name"
+nameBox.Text = ""
+nameBox.Font = Enum.Font.Gotham
+nameBox.TextSize = 13
+nameBox.BackgroundColor3 = Color3.fromRGB(35,35,35)
+nameBox.TextColor3 = Color3.new(1,1,1)
+Instance.new("UICorner", nameBox)
 
--- Minus Button
-local minus = Instance.new("TextButton")
-minus.Size = UDim2.new(0.45,0,0,30)
-minus.Position = UDim2.new(0.05,0,0,110)
-minus.Text = "-"
-minus.BackgroundColor3 = Color3.fromRGB(60,60,60)
-minus.TextColor3 = Color3.new(1,1,1)
-minus.Font = Enum.Font.GothamBold
-minus.TextSize = 20
-minus.Parent = frame
-Instance.new("UICorner", minus)
+local tpBtn = makeBtn("TP TO PLAYER", 210)
 
--- Plus Button
-local plus = Instance.new("TextButton")
-plus.Size = UDim2.new(0.45,0,0,30)
-plus.Position = UDim2.new(0.5,0,0,110)
-plus.Text = "+"
-plus.BackgroundColor3 = Color3.fromRGB(60,60,60)
-plus.TextColor3 = Color3.new(1,1,1)
-plus.Font = Enum.Font.GothamBold
-plus.TextSize = 20
-plus.Parent = frame
-Instance.new("UICorner", plus)
-
--- ===== LOGIC =====
+-- ================= LOGIC =================
 local function startSpin()
-	spinConnection = RunService.RenderStepped:Connect(function()
-		hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
+	spinConn = RunService.RenderStepped:Connect(function()
+		if flingMode then
+			HRP.Velocity = Vector3.new(9e7,0,9e7)
+			HRP.RotVelocity = Vector3.new(9e7,9e7,9e7)
+		end
+		HRP.CFrame = HRP.CFrame * CFrame.Angles(0, math.rad(spinSpeed), 0)
 	end)
 end
 
 local function stopSpin()
-	if spinConnection then
-		spinConnection:Disconnect()
-		spinConnection = nil
+	if spinConn then
+		spinConn:Disconnect()
+		spinConn = nil
 	end
+	HRP.Velocity = Vector3.zero
+	HRP.RotVelocity = Vector3.zero
 end
 
-toggle.MouseButton1Click:Connect(function()
+spinBtn.MouseButton1Click:Connect(function()
 	spinning = not spinning
-	toggle.Text = spinning and "SPIN : ON" or "SPIN : OFF"
+	spinBtn.Text = spinning and "SPIN : ON" or "SPIN : OFF"
+	if spinning then startSpin() else stopSpin() end
+end)
 
-	if spinning then
-		startSpin()
-	else
-		stopSpin()
+flingBtn.MouseButton1Click:Connect(function()
+	flingMode = not flingMode
+	flingBtn.Text = flingMode and "FLING : ON" or "FLING : OFF"
+end)
+
+speedBtn.MouseButton1Click:Connect(function()
+	spinSpeed = spinSpeed + 5
+	if spinSpeed > 60 then spinSpeed = 5 end
+	speedBtn.Text = "SPEED : "..spinSpeed
+end)
+
+tpBtn.MouseButton1Click:Connect(function()
+	local targetName = nameBox.Text
+	for _,plr in pairs(Players:GetPlayers()) do
+		if string.lower(plr.Name):sub(1,#targetName) == string.lower(targetName) then
+			if plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+				HRP.CFrame = plr.Character.HumanoidRootPart.CFrame * CFrame.new(0,0,3)
+			end
+		end
 	end
-end)
-
-plus.MouseButton1Click:Connect(function()
-	spinSpeed = math.clamp(spinSpeed + 2, 0, 100)
-	speedLabel.Text = "Speed: "..spinSpeed
-end)
-
-minus.MouseButton1Click:Connect(function()
-	spinSpeed = math.clamp(spinSpeed - 2, 0, 100)
-	speedLabel.Text = "Speed: "..spinSpeed
 end)
 
 -- Respawn Fix
-player.CharacterAdded:Connect(function(char)
-	character = char
-	hrp = char:WaitForChild("HumanoidRootPart")
+LocalPlayer.CharacterAdded:Connect(function(char)
+	Character = char
+	HRP = char:WaitForChild("HumanoidRootPart")
 	stopSpin()
 	spinning = false
-	toggle.Text = "SPIN : OFF"
+	flingMode = false
+	spinBtn.Text = "SPIN : OFF"
+	flingBtn.Text = "FLING : OFF"
 end)
