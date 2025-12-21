@@ -210,12 +210,9 @@ Tab:CreateButton({
         Rayfield:Destroy()
 
         -- SAFE LOAD MAIN
-        local okLoad, err = pcall(function()
+        local okLoad = pcall(function()
             loadstring(game:HttpGet(MAIN_URL))()
         end)
 
-        if not okLoad then
-            warn("Main loader tampered")
-        end
     end
 })
