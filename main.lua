@@ -1,16 +1,29 @@
+if getgenv().__QUERYHUB_DEAD then
+    return
+end
+
 --================== SERVICES ==================--
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local lp = Players.LocalPlayer
 
---================== HARD KICK ==================--
+--================== HARD KICK (REAL STOP) ==================--
 local function HardKick(reason)
+    reason = tostring(reason)
+
+    -- mark dead
+    getgenv().__QUERYHUB_DEAD = true
+
     pcall(function()
-        lp:Kick("[ QUERYHUB SECURITY ] "..tostring(reason))
+        lp:Kick("[ QUERYHUB SECURITY ] "..reason)
     end)
-    task.wait()
-    error(reason, 0)
-    while true do end
+
+    -- freeze all threads
+    task.delay(0, function()
+        while true do task.wait() end
+    end)
+
+    return error(reason, 2)
 end
 
 --================== EXECUTOR CHECK ==================--
@@ -29,7 +42,7 @@ local ALLOWED_EXECUTORS = {
 
 local function isExecutorAllowed()
     local exec = getExecutor()
-    for _,v in ipairs(ALLOWED_EXECUTORS) do
+    for _, v in ipairs(ALLOWED_EXECUTORS) do
         if exec:lower():find(v:lower()) then
             return true, exec
         end
@@ -42,7 +55,11 @@ if not okExec then
     HardKick("Executor not supported : "..execName)
 end
 
---================== ANTI DOUBLE LOAD ==================--
+--================== ANTI DOUBLE EXECUTE ==================--
+if getgenv().__QUERYHUB_LOCK then
+    HardKick("Session already locked")
+end
+
 if getgenv().__QUERYHUB_LOADED then
     HardKick("Double execution detected")
 end
@@ -95,6 +112,7 @@ local function getExpire(typeKey, y, m, d)
         day = tonumber(d),
         hour = 23, min = 59, sec = 59
     })
+
     if typeKey == "DAILY" then
         return base + 86400
     elseif typeKey == "WEEKLY" then
@@ -119,10 +137,12 @@ local function checkKey(input)
             if not y then
                 HardKick("Corrupted key data")
             end
-            local expire = getExpire(typeKey, y,m,d)
+
+            local expire = getExpire(typeKey, y, m, d)
             if os.time() > expire then
                 HardKick("Expired key usage")
             end
+
             return true, expire, typeKey
         end
     end
@@ -146,7 +166,7 @@ local status = Tab:CreateParagraph({
     Content = "Waiting for key"
 })
 
--- 🔑 INPUT FIX (ANTI CALLBACK ERROR)
+--================== INPUT ==================--
 local INPUT_KEY = ""
 
 Tab:CreateInput({
@@ -158,6 +178,7 @@ Tab:CreateInput({
     end
 })
 
+--================== VERIFY BUTTON ==================--
 Tab:CreateButton({
     Name = "VERIFY KEY",
     Callback = function()
@@ -177,9 +198,8 @@ Tab:CreateButton({
         end
 
         local ok, expire, typeKey = checkKey(INPUT_KEY)
-
         if not ok then
-            S.fail += 1
+            S.fail = S.fail + 1
             status:Set({
                 Title = "Status",
                 Content = "INVALID KEY"
@@ -190,7 +210,7 @@ Tab:CreateButton({
             return
         end
 
-        -- 🔒 SESSION LOCK
+        --================== SESSION LOCK ==================--
         getgenv().__QUERYHUB_SESSION = {
             verified = true,
             userid = lp.UserId,
@@ -209,10 +229,14 @@ Tab:CreateButton({
 
         Rayfield:Destroy()
 
-        -- SAFE LOAD MAIN
-        local okLoad = pcall(function()
-            loadstring(game:HttpGet(MAIN_URL))()
-        end)
+        --================== FINAL GATE ==================--
+        local S2 = getgenv().__QUERYHUB_SESSION
+        if not S2 or not S2.verified or S2.userid ~= lp.UserId then
+            HardKick("Session validation failed")
+            return
+        end
 
+        --================== LOAD MAIN (NO PCALL) ==================--
+        loadstring(game:HttpGet(MAIN_URL))()
     end
 })
