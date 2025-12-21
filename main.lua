@@ -66,11 +66,12 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 --================== SESSION ==================--
 getgenv().__QUERYHUB_SESSION = {
-	verified = false,
-	lastTry = 0,
-	fail = 0
+    verified = false,
+    userid = nil,
+    executor = nil,
+    time = 0
 }
-
+getgenv().__QUERYHUB_LOCK = false
 --================== UTILS ==================--
 local function safeHttp(url)
 	local ok,res = pcall(function()
