@@ -1,13 +1,16 @@
---// QueryHub Premium Key System
---// Key Type + Anti Tamper (Rayfield)
+local Players = game:GetService("Players")
+local lp = Players.LocalPlayer
 
+if getgenv().__QUERYHUB_LOADED then
+    lp:Kick("[ SYSTEM ] QueryHub has detected attempts to execute the script more than 2 times, please try again later")
+    return
+end
+getgenv().__QUERYHUB_LOADED = true
 -- ================== CONFIG ==================
 local KEY_URL  = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/key.txt"
 local MAIN_URL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/p1.lua"
 
 -- ================== SERVICES ==================
-local Players = game:GetService("Players")
-local lp = Players.LocalPlayer
 
 -- ================== ICONS ==================
 local ICON_APP     = 6031071053
@@ -25,7 +28,7 @@ local __CHECKSUM = tostring(#KEY_URL + #MAIN_URL)
 
 local function tamperDetected()
     pcall(function()
-        lp:Kick("QueryHub | Script modified or corrupted")
+        lp:Kick("[ SYSTEM ] Script modified or corrupted")
     end)
     while true do end
 end
@@ -103,7 +106,7 @@ end
 
 -- ================== UI ==================
 local Window = Rayfield:CreateWindow({
-    Name = "QueryHub Premium",
+    Name = "QueryHub Gateway",
     LoadingTitle = "QueryHub",
     LoadingSubtitle = "Secure Verification",
     Icon = ICON_APP,
