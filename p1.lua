@@ -15,7 +15,7 @@ end
 
 if not S
 	or S.verified ~= true
-	or S.userid ~= lp.UserId
+	or S.userid ~= lozer.UserId
 	or type(S.token) ~= "string"
 	or not getgenv().__QUERYHUB_LOCK
 then
