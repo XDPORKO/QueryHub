@@ -14,13 +14,13 @@ local function BackToGateway()
 end
 
 if not S
-or S.verified ~= true
-or S.userid ~= lp.UserId
-or type(S.token) ~= "string"
-or not getgenv().__QUERYHUB_LOCK then
-    lozer:Kick("[ SYSTEM ] Ga Usah Sok Bypass Ngentod")
-    BackToGateway()
-    return
+	or S.verified ~= true
+	or S.userid ~= lp.UserId
+	or type(S.token) ~= "string"
+	or not getgenv().__QUERYHUB_LOCK
+then
+	lp:Kick("[ SYSTEM ] Eits, kalo bypass mikir kidsss 🤭💦")
+	return
 end
 
 -- SERVICES
