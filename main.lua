@@ -1,267 +1,165 @@
+--// QueryHub Premium Key System (Rayfield Edition)
+--// Mobile + PC | Secure Client-Side
 
+-- ================== CONFIG ==================
 local KEY_URL  = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/key.txt"
 local MAIN_URL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/p1.lua"
 
--- SERVICES
+-- ================== SERVICES ==================
 local Players = game:GetService("Players")
-local TweenService = game:GetService("TweenService")
-local StarterGui = game:GetService("StarterGui")
-local RunService = game:GetService("RunService")
-local SoundService = game:GetService("SoundService")
+local HttpService = game:GetService("HttpService")
 local lp = Players.LocalPlayer
 
--- SESSION MANAGEMENT
-if not _G.VerifiedPlayers then _G.VerifiedPlayers = {} end
-if _G.VerifiedPlayers[lp.UserId] then
+-- ================== UI LIB ==================
+local Rayfield = loadstring(game:HttpGet(
+    "https://sirius.menu/rayfield"
+))()
+
+-- ================== SESSION ==================
+getgenv().__QUERYHUB_SESSION = getgenv().__QUERYHUB_SESSION or {
+    verified = false,
+    lastTry = 0
+}
+
+if getgenv().__QUERYHUB_SESSION.verified then
     loadstring(game:HttpGet(MAIN_URL))()
     return
 end
 
--- KEY CHECK
+-- ================== UTILS ==================
+local function safeHttp(url)
+    local ok, res = pcall(function()
+        return game:HttpGet(url)
+    end)
+    return ok and res or nil
+end
+
+local function hash(str)
+    local h = 0
+    for i = 1, #str do
+        h = (h * 31 + string.byte(str, i)) % 2^31
+    end
+    return tostring(h)
+end
+
+-- ================== KEY CHECK ==================
 local function checkKey(input)
-    local raw = game:HttpGet(KEY_URL)
+    local raw = safeHttp(KEY_URL)
+    if not raw then
+        return false, "NETWORK ERROR"
+    end
+
+    local inputHash = hash(input)
+
     for line in raw:gmatch("[^\r\n]+") do
-        local key,exp = line:match("(.+)|(.+)")
-        if input == key then
-            local y,m,d = exp:match("(%d+)%-(%d+)%-(%d+)")
-            local expire = os.time({year=y, month=m, day=d, hour=23, min=59, sec=59})
-            if os.time() > expire then return false,"KEY EXPIRED" end
-            return true,"SUCCESS",expire
+        local key, exp = line:match("(.+)|(.+)")
+        if key and exp then
+            if hash(key) == inputHash then
+                local y,m,d = exp:match("(%d+)%-(%d+)%-(%d+)")
+                local expire = os.time({
+                    year=y, month=m, day=d,
+                    hour=23, min=59, sec=59
+                })
+                if os.time() > expire then
+                    return false, "KEY EXPIRED"
+                end
+                return true, expire
+            end
         end
     end
-    return false,"WRONG KEY"
+
+    return false, "INVALID KEY"
 end
 
--- SOUNDS (vibes modern)
-local function createSound(parent,id,volume)
-    local s = Instance.new("Sound", parent)
-    s.SoundId = "rbxassetid://"..id
-    s.Volume = volume or 0.6
-    return s
-end
+-- ================== UI ==================
+local Window = Rayfield:CreateWindow({
+    Name = "QueryHub Premium",
+    LoadingTitle = "QueryHub",
+    LoadingSubtitle = "Secure Key System",
+    ConfigurationSaving = false,
+    KeySystem = false
+})
 
-local clickSound   = createSound(lp.PlayerGui,9118821771,0.6)
-local successSound = createSound(lp.PlayerGui,9118821842,0.7)
-local errorSound   = createSound(lp.PlayerGui,9118821911,0.7)
+local Tab = Window:CreateTab("🔐 Key", 4483362458)
 
--- GUI MAIN
-local gui = Instance.new("ScreenGui", lp.PlayerGui)
-gui.Name = "UltraPremiumGUI"
-gui.ResetOnSpawn = false
+local statusLabel = Tab:CreateParagraph({
+    Title = "Status",
+    Content = "Please enter your key"
+})
 
--- BACKDROP
-local backdrop = Instance.new("Frame", gui)
-backdrop.Size = UDim2.fromScale(1,1)
-backdrop.BackgroundColor3 = Color3.fromRGB(0,0,0)
-backdrop.BackgroundTransparency = 0.6
+local countdownLabel = Tab:CreateParagraph({
+    Title = "Expiry",
+    Content = "-"
+})
 
-local blur = Instance.new("UIBlurEffect", backdrop)
-blur.Size = 8
+local keyInput
+keyInput = Tab:CreateInput({
+    Name = "Key",
+    PlaceholderText = "ENTER YOUR KEY",
+    RemoveTextAfterFocusLost = false,
+    Callback = function() end
+})
 
--- FRAME
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.fromScale(0,0)
-frame.Position = UDim2.fromScale(0.5,0.5)
-frame.AnchorPoint = Vector2.new(0.5,0.5)
-frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
-frame.ClipsDescendants = true
-frame.BorderSizePixel = 0
-Instance.new("UICorner", frame).CornerRadius = UDim.new(0,28)
+Tab:CreateButton({
+    Name = "VERIFY KEY",
+    Callback = function()
+        if os.clock() - getgenv().__QUERYHUB_SESSION.lastTry < 2 then
+            Rayfield:Notify({
+                Title = "Wait",
+                Content = "Please slow down",
+                Duration = 2
+            })
+            return
+        end
+        getgenv().__QUERYHUB_SESSION.lastTry = os.clock()
 
--- SHADOW + GRADIENT
-local shadow = Instance.new("Frame", frame)
-shadow.Size = UDim2.fromScale(1,1)
-shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-shadow.BackgroundTransparency = 0.7
-shadow.ZIndex = 0
-Instance.new("UICorner", shadow).CornerRadius = UDim.new(0,28)
+        statusLabel:Set({
+            Title = "Status",
+            Content = "Checking key..."
+        })
 
-local grad = Instance.new("UIGradient", frame)
-grad.Color = ColorSequence.new{
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,180)),
-    ColorSequenceKeypoint.new(0.5, Color3.fromRGB(0,255,200)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(255,0,180))
-}
-grad.Rotation = 45
+        local ok, expireOrMsg = checkKey(keyInput.CurrentValue)
 
--- POPUP ANIMATION
-TweenService:Create(frame,TweenInfo.new(0.5,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{
-    Size = UDim2.fromScale(0.55,0.45)
-}):Play()
+        if ok then
+            getgenv().__QUERYHUB_SESSION.verified = true
 
--- ICON SCRIPT
-local icon = Instance.new("ImageLabel", frame)
-icon.Size = UDim2.fromScale(0.15,0.15)
-icon.Position = UDim2.fromScale(0.05,0.02)
-icon.Image = "rbxassetid://71212053414568" -- ganti icon keren
-icon.BackgroundTransparency = 1
-icon.ScaleType = Enum.ScaleType.Fit
+            Rayfield:Notify({
+                Title = "Success",
+                Content = "Key verified",
+                Duration = 3
+            })
 
--- TITLE
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.fromScale(0.8,0.15)
-title.Position = UDim2.fromScale(0.2,0.02)
-title.Text = "PREMIUM KEY SYSTEM"
-title.Font = Enum.Font.GothamBold
-title.TextScaled = true
-title.TextColor3 = Color3.fromRGB(255,255,255)
-title.BackgroundTransparency = 1
+            task.spawn(function()
+                while os.time() < expireOrMsg do
+                    local s = expireOrMsg - os.time()
+                    countdownLabel:Set({
+                        Title = "Expiry",
+                        Content = string.format(
+                            "%02d:%02d:%02d",
+                            s/3600%24,
+                            s/60%60,
+                            s%60
+                        )
+                    })
+                    task.wait(1)
+                end
+            end)
 
--- MAIN TAB
-local mainTab = Instance.new("Frame", frame)
-mainTab.Size = UDim2.fromScale(1,0.8)
-mainTab.Position = UDim2.fromScale(0,0.18)
-mainTab.BackgroundTransparency = 1
+            task.wait(1)
+            Rayfield:Destroy()
+            loadstring(game:HttpGet(MAIN_URL))()
 
--- INPUT BOX
-local box = Instance.new("TextBox", mainTab)
-box.Size = UDim2.fromScale(0.85,0.18)
-box.Position = UDim2.fromScale(0.075,0.05)
-box.PlaceholderText = "ENTER YOUR KEY"
-box.Font = Enum.Font.Gotham
-box.TextScaled = true
-box.BackgroundColor3 = Color3.fromRGB(35,35,35)
-box.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", box).CornerRadius = UDim.new(0,20)
+        else
+            Rayfield:Notify({
+                Title = "Error",
+                Content = expireOrMsg,
+                Duration = 3
+            })
 
--- STATUS LABEL
-local status = Instance.new("TextLabel", mainTab)
-status.Size = UDim2.fromScale(1,0.12)
-status.Position = UDim2.fromScale(0,0.28)
-status.Text = ""
-status.Font = Enum.Font.Gotham
-status.TextScaled = true
-status.BackgroundTransparency = 1
-status.TextColor3 = Color3.fromRGB(255,80,80)
-
--- COUNTDOWN LABEL
-local countdown = Instance.new("TextLabel", mainTab)
-countdown.Size = UDim2.fromScale(1,0.1)
-countdown.Position = UDim2.fromScale(0,0.4)
-countdown.Text = ""
-countdown.Font = Enum.Font.Gotham
-countdown.TextScaled = true
-countdown.BackgroundTransparency = 1
-countdown.TextColor3 = Color3.fromRGB(200,200,200)
-
--- VERIFY BUTTON
-local verify = Instance.new("TextButton", mainTab)
-verify.Size = UDim2.fromScale(0.85,0.18)
-verify.Position = UDim2.fromScale(0.075,0.55)
-verify.Text = "VERIFY"
-verify.Font = Enum.Font.GothamBold
-verify.TextScaled = true
-verify.BackgroundColor3 = Color3.fromRGB(255,0,180)
-verify.TextColor3 = Color3.new(1,1,1)
-Instance.new("UICorner", verify).CornerRadius = UDim.new(0,22)
-
--- RIPPLE EFFECT
-local function rippleEffect(btn)
-    local ripple = Instance.new("Frame", btn)
-    ripple.Size = UDim2.fromScale(0,0)
-    ripple.Position = UDim2.fromScale(0.5,0.5)
-    ripple.AnchorPoint = Vector2.new(0.5,0.5)
-    ripple.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    ripple.BackgroundTransparency = 0.5
-    Instance.new("UICorner", ripple).CornerRadius = UDim.new(1,0)
-    TweenService:Create(ripple,TweenInfo.new(0.4,Enum.EasingStyle.Quad),{Size=UDim2.fromScale(2,2), BackgroundTransparency=1}):Play()
-    game.Debris:AddItem(ripple,0.5)
-end
-
--- MODERN POPUP FUNCTION
-local function createPopup(msg,color,iconId)
-    local pop = Instance.new("Frame", gui)
-    pop.Size = UDim2.fromScale(0,0.08)
-    pop.Position = UDim2.fromScale(0.8,0.92)
-    pop.AnchorPoint = Vector2.new(0.5,0.5)
-    pop.BackgroundColor3 = color
-    Instance.new("UICorner", pop).CornerRadius = UDim.new(0,16)
-
-    local img = Instance.new("ImageLabel", pop)
-    img.Size = UDim2.fromScale(0.2,1)
-    img.Position = UDim2.fromScale(0,0)
-    img.Image = iconId or "rbxassetid://71212053414568"
-    img.BackgroundTransparency = 1
-    img.ScaleType = Enum.ScaleType.Fit
-
-    local txt = Instance.new("TextLabel", pop)
-    txt.Size = UDim2.fromScale(0.8,1)
-    txt.Position = UDim2.fromScale(0.2,0)
-    txt.Text = msg
-    txt.TextScaled = true
-    txt.Font = Enum.Font.GothamBold
-    txt.TextColor3 = Color3.fromRGB(255,255,255)
-    txt.BackgroundTransparency = 1
-
-    TweenService:Create(pop,TweenInfo.new(0.5,Enum.EasingStyle.Back),{Size=UDim2.fromScale(0.25,0.08)}):Play()
-    task.delay(2, function()
-        TweenService:Create(pop,TweenInfo.new(0.5,Enum.EasingStyle.Back),{Size=UDim2.fromScale(0,0)}):Play()
-        task.wait(0.5)
-        pop:Destroy()
-    end)
-end
-
--- VERIFY LOGIC
-verify.MouseButton1Click:Connect(function()
-    rippleEffect(verify)
-    clickSound:Play()
-    status.TextColor3 = Color3.fromRGB(255,255,0)
-    status.Text = "CHECKING..."
-
-    local bar = Instance.new("Frame", mainTab)
-    bar.Size = UDim2.fromScale(0,0.04)
-    bar.Position = UDim2.fromScale(0.075,0.48)
-    bar.BackgroundColor3 = Color3.fromRGB(0,255,200)
-    Instance.new("UICorner", bar).CornerRadius = UDim.new(0,12)
-    TweenService:Create(bar, TweenInfo.new(0.5), {Size=UDim2.fromScale(0.85,0.04)}):Play()
-    task.wait(0.5)
-
-    local ok,msg,expire = checkKey(box.Text)
-    if ok then
-        _G.VerifiedPlayers[lp.UserId] = true
-        status.TextColor3 = Color3.fromRGB(0,255,120)
-        status.Text = "KEY VALID"
-        successSound:Play()
-        createPopup("KEY VERIFIED!",Color3.fromRGB(0,200,120),"rbxassetid://71212053414568")
-
-        local check = Instance.new("TextLabel", mainTab)
-        check.Size = UDim2.fromScale(0.3,0.3)
-        check.Position = UDim2.fromScale(0.35,0.15)
-        check.Text = "✔"
-        check.Font = Enum.Font.GothamBold
-        check.TextScaled = true
-        check.TextColor3 = Color3.fromRGB(0,255,120)
-        check.BackgroundTransparency = 1
-        check.Visible = true
-        check.TextTransparency = 1
-        TweenService:Create(check, TweenInfo.new(0.4), {TextTransparency=0}):Play()
-
-        task.spawn(function()
-            while os.time() < expire do
-                local s = expire - os.time()
-                countdown.Text = ("EXPIRES IN %02d:%02d:%02d"):format(s/3600%24, s/60%60, s%60)
-                task.wait(1)
-            end
-        end)
-
-        task.wait(1)
-        TweenService:Create(frame, TweenInfo.new(0.4),{Size=UDim2.fromScale(0,0)}):Play()
-        task.wait(0.4)
-        gui:Destroy()
-        loadstring(game:HttpGet(MAIN_URL))()
-    else
-        status.TextColor3 = Color3.fromRGB(255,80,80)
-        status.Text = msg
-        countdown.Text = ""
-        errorSound:Play()
-        createPopup(msg,Color3.fromRGB(200,50,50),"rbxassetid://71212053414568")
+            statusLabel:Set({
+                Title = "Status",
+                Content = expireOrMsg
+            })
+        end
     end
-end)
-
--- START NOTIFICATION
-StarterGui:SetCore("SendNotification",{
-    Title="Premium Key System",
-    Text="Enter your key",
-    Duration=3,
-    Icon="rbxassetid://71212053414568"
 })
