@@ -1,19 +1,15 @@
 local KEY_URL  = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/key.txt"
 local MAIN_URL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/p1.lua"
 
---================================================--
 -- SERVICES
---================================================--
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local StarterGui = game:GetService("StarterGui")
 local RunService = game:GetService("RunService")
-
+local SoundService = game:GetService("SoundService")
 local lp = Players.LocalPlayer
 
---================================================--
 -- KEY CHECK
---================================================--
 local function checkKey(input)
     local raw = game:HttpGet(KEY_URL)
     for line in raw:gmatch("[^\r\n]+") do
@@ -28,14 +24,24 @@ local function checkKey(input)
     return false,"WRONG KEY"
 end
 
---================================================--
+-- SOUNDS
+local clickSound = Instance.new("Sound", lp.PlayerGui)
+clickSound.SoundId = "rbxassetid://12222216" -- contoh asset id
+clickSound.Volume = 0.5
+
+local successSound = Instance.new("Sound", lp.PlayerGui)
+successSound.SoundId = "rbxassetid://12222225"
+successSound.Volume = 0.6
+
+local errorSound = Instance.new("Sound", lp.PlayerGui)
+errorSound.SoundId = "rbxassetid://12222230"
+errorSound.Volume = 0.6
+
 -- GUI
---================================================--
 local gui = Instance.new("ScreenGui", lp.PlayerGui)
-gui.Name = "UltraKeyGUI"
+gui.Name = "UltraPremiumGUI"
 gui.ResetOnSpawn = false
 
--- main frame
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.fromScale(0,0)
 frame.Position = UDim2.fromScale(0.5,0.5)
@@ -45,7 +51,14 @@ frame.ClipsDescendants = true
 frame.BorderSizePixel = 0
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,28)
 
--- neon gradient
+-- Shadow + Gradient
+local shadow = Instance.new("Frame", frame)
+shadow.Size = UDim2.fromScale(1,1)
+shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
+shadow.BackgroundTransparency = 0.75
+shadow.ZIndex = 0
+Instance.new("UICorner", shadow).CornerRadius = UDim.new(0,28)
+
 local grad = Instance.new("UIGradient", frame)
 grad.Color = ColorSequence.new{
     ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,180)),
@@ -54,34 +67,73 @@ grad.Color = ColorSequence.new{
 }
 grad.Rotation = 45
 
--- shadow
-local shadow = Instance.new("Frame", frame)
-shadow.Size = UDim2.fromScale(1,1)
-shadow.Position = UDim2.fromScale(0,0)
-shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-shadow.BackgroundTransparency = 0.7
-shadow.ZIndex = 0
-Instance.new("UICorner", shadow).CornerRadius = UDim.new(0,28)
-
--- popup animation
-TweenService:Create(frame, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out),{
-    Size = UDim2.fromScale(0.52,0.38)
+-- POPUP ANIMATION
+TweenService:Create(frame,TweenInfo.new(0.5,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{
+    Size = UDim2.fromScale(0.52,0.45)
 }):Play()
 
--- title
+-- TITLE
 local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.fromScale(1,0.2)
+title.Size = UDim2.fromScale(1,0.15)
 title.Position = UDim2.fromScale(0,0)
-title.Text = "🔐 PREMIUM KEY VERIFY"
+title.Text = "🔐 PREMIUM KEY SYSTEM"
 title.Font = Enum.Font.GothamBold
 title.TextScaled = true
 title.TextColor3 = Color3.fromRGB(255,255,255)
 title.BackgroundTransparency = 1
 
--- key input
-local box = Instance.new("TextBox", frame)
+-- TAB BAR
+local tabBar = Instance.new("Frame", frame)
+tabBar.Size = UDim2.fromScale(1,0.12)
+tabBar.Position = UDim2.fromScale(0,0.15)
+tabBar.BackgroundTransparency = 1
+
+local tabs = {
+    {Name="Main",Icon="🔑"},
+    {Name="Info",Icon="ℹ️"},
+    {Name="Settings",Icon="⚙️"}
+}
+
+local tabFrames = {}
+for i,t in ipairs(tabs) do
+    local btn = Instance.new("TextButton", tabBar)
+    btn.Size = UDim2.fromScale(1/#tabs,1)
+    btn.Position = UDim2.fromScale((i-1)/#tabs,0)
+    btn.Text = t.Icon.." "..t.Name
+    btn.TextScaled = true
+    btn.Font = Enum.Font.GothamBold
+    btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,14)
+
+    -- HOVER ANIMATION
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn,TweenInfo.new(0.25),{BackgroundColor3=Color3.fromRGB(80,0,180)}):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn,TweenInfo.new(0.25),{BackgroundColor3=Color3.fromRGB(40,40,40)}):Play()
+    end)
+
+    local f = Instance.new("Frame", frame)
+    f.Size = UDim2.fromScale(1,0.65)
+    f.Position = UDim2.fromScale(0,0.25)
+    f.BackgroundTransparency = 1
+    f.Visible = (i==1)
+    tabFrames[t.Name] = f
+
+    btn.MouseButton1Click:Connect(function()
+        clickSound:Play()
+        for _,v in pairs(tabFrames) do v.Visible = false end
+        f.Visible = true
+    end)
+end
+
+-- MAIN TAB CONTENT
+local mainTab = tabFrames["Main"]
+
+local box = Instance.new("TextBox", mainTab)
 box.Size = UDim2.fromScale(0.85,0.18)
-box.Position = UDim2.fromScale(0.075,0.32)
+box.Position = UDim2.fromScale(0.075,0.05)
 box.PlaceholderText = "ENTER YOUR KEY"
 box.Font = Enum.Font.Gotham
 box.TextScaled = true
@@ -89,30 +141,27 @@ box.BackgroundColor3 = Color3.fromRGB(35,35,35)
 box.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", box).CornerRadius = UDim.new(0,20)
 
--- status
-local status = Instance.new("TextLabel", frame)
+local status = Instance.new("TextLabel", mainTab)
 status.Size = UDim2.fromScale(1,0.12)
-status.Position = UDim2.fromScale(0,0.53)
+status.Position = UDim2.fromScale(0,0.28)
 status.Text = ""
 status.Font = Enum.Font.Gotham
 status.TextScaled = true
 status.BackgroundTransparency = 1
 status.TextColor3 = Color3.fromRGB(255,80,80)
 
--- countdown
-local countdown = Instance.new("TextLabel", frame)
+local countdown = Instance.new("TextLabel", mainTab)
 countdown.Size = UDim2.fromScale(1,0.1)
-countdown.Position = UDim2.fromScale(0,0.63)
+countdown.Position = UDim2.fromScale(0,0.4)
 countdown.Text = ""
 countdown.Font = Enum.Font.Gotham
 countdown.TextScaled = true
 countdown.BackgroundTransparency = 1
 countdown.TextColor3 = Color3.fromRGB(200,200,200)
 
--- verify button
-local verify = Instance.new("TextButton", frame)
+local verify = Instance.new("TextButton", mainTab)
 verify.Size = UDim2.fromScale(0.85,0.18)
-verify.Position = UDim2.fromScale(0.075,0.75)
+verify.Position = UDim2.fromScale(0.075,0.55)
 verify.Text = "VERIFY"
 verify.Font = Enum.Font.GothamBold
 verify.TextScaled = true
@@ -120,7 +169,7 @@ verify.BackgroundColor3 = Color3.fromRGB(255,0,180)
 verify.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", verify).CornerRadius = UDim.new(0,22)
 
--- ripple effect
+-- RIPLE EFFECT
 local function rippleEffect(btn)
     local ripple = Instance.new("Frame", btn)
     ripple.Size = UDim2.fromScale(0,0)
@@ -133,15 +182,17 @@ local function rippleEffect(btn)
     game.Debris:AddItem(ripple,0.5)
 end
 
+-- VERIFY LOGIC
 verify.MouseButton1Click:Connect(function()
     rippleEffect(verify)
+    clickSound:Play()
     status.TextColor3 = Color3.fromRGB(255,255,0)
     status.Text = "CHECKING..."
 
     -- loader bar
-    local bar = Instance.new("Frame", frame)
+    local bar = Instance.new("Frame", mainTab)
     bar.Size = UDim2.fromScale(0,0.04)
-    bar.Position = UDim2.fromScale(0.075,0.7)
+    bar.Position = UDim2.fromScale(0.075,0.48)
     bar.BackgroundColor3 = Color3.fromRGB(0,255,200)
     Instance.new("UICorner", bar).CornerRadius = UDim.new(0,12)
     TweenService:Create(bar, TweenInfo.new(0.5), {Size=UDim2.fromScale(0.85,0.04)}):Play()
@@ -151,17 +202,17 @@ verify.MouseButton1Click:Connect(function()
     if ok then
         status.TextColor3 = Color3.fromRGB(0,255,120)
         status.Text = "KEY VALID"
-        local check = Instance.new("TextLabel", frame)
+        successSound:Play()
+
+        local check = Instance.new("TextLabel", mainTab)
         check.Size = UDim2.fromScale(0.3,0.3)
-        check.Position = UDim2.fromScale(0.35,0.3)
+        check.Position = UDim2.fromScale(0.35,0.15)
         check.Text = "✔"
         check.Font = Enum.Font.GothamBold
         check.TextScaled = true
         check.TextColor3 = Color3.fromRGB(0,255,120)
         check.BackgroundTransparency = 1
         check.Visible = true
-
-        -- check animation
         check.TextTransparency = 1
         TweenService:Create(check, TweenInfo.new(0.4), {TextTransparency=0}):Play()
 
@@ -183,6 +234,7 @@ verify.MouseButton1Click:Connect(function()
         status.TextColor3 = Color3.fromRGB(255,80,80)
         status.Text = msg
         countdown.Text = ""
+        errorSound:Play()
     end
 end)
 
