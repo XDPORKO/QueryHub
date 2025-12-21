@@ -83,7 +83,7 @@ TweenService:Create(frame,TweenInfo.new(0.5,Enum.EasingStyle.Back,Enum.EasingDir
 local icon = Instance.new("ImageLabel", frame)
 icon.Size = UDim2.fromScale(0.15,0.15)
 icon.Position = UDim2.fromScale(0.05,0.02)
-icon.Image = "rbxassetid://INSERT_ICON_ASSETID_HERE"
+icon.Image = "rbxassetid://71212053414568"
 icon.BackgroundTransparency = 1
 icon.ScaleType = Enum.ScaleType.Fit
 
