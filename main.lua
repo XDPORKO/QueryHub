@@ -1,3 +1,4 @@
+
 local KEY_URL  = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/key.txt"
 local MAIN_URL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/p1.lua"
 
@@ -9,7 +10,7 @@ local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
 local lp = Players.LocalPlayer
 
--- SESSION TABLE
+-- SESSION MANAGEMENT
 if not _G.VerifiedPlayers then _G.VerifiedPlayers = {} end
 if _G.VerifiedPlayers[lp.UserId] then
     loadstring(game:HttpGet(MAIN_URL))()
@@ -31,38 +32,47 @@ local function checkKey(input)
     return false,"WRONG KEY"
 end
 
--- SOUNDS
-local clickSound = Instance.new("Sound", lp.PlayerGui)
-clickSound.SoundId = "rbxassetid://9118821771"
-clickSound.Volume = 0.6
+-- SOUNDS (vibes modern)
+local function createSound(parent,id,volume)
+    local s = Instance.new("Sound", parent)
+    s.SoundId = "rbxassetid://"..id
+    s.Volume = volume or 0.6
+    return s
+end
 
-local successSound = Instance.new("Sound", lp.PlayerGui)
-successSound.SoundId = "rbxassetid://9118821842"
-successSound.Volume = 0.7
-
-local errorSound = Instance.new("Sound", lp.PlayerGui)
-errorSound.SoundId = "rbxassetid://9118821911"
-errorSound.Volume = 0.7
+local clickSound   = createSound(lp.PlayerGui,9118821771,0.6)
+local successSound = createSound(lp.PlayerGui,9118821842,0.7)
+local errorSound   = createSound(lp.PlayerGui,9118821911,0.7)
 
 -- GUI MAIN
 local gui = Instance.new("ScreenGui", lp.PlayerGui)
 gui.Name = "UltraPremiumGUI"
 gui.ResetOnSpawn = false
 
+-- BACKDROP
+local backdrop = Instance.new("Frame", gui)
+backdrop.Size = UDim2.fromScale(1,1)
+backdrop.BackgroundColor3 = Color3.fromRGB(0,0,0)
+backdrop.BackgroundTransparency = 0.6
+
+local blur = Instance.new("UIBlurEffect", backdrop)
+blur.Size = 8
+
+-- FRAME
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.fromScale(0,0)
 frame.Position = UDim2.fromScale(0.5,0.5)
 frame.AnchorPoint = Vector2.new(0.5,0.5)
-frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
 frame.ClipsDescendants = true
 frame.BorderSizePixel = 0
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,28)
 
--- Shadow + Gradient
+-- SHADOW + GRADIENT
 local shadow = Instance.new("Frame", frame)
 shadow.Size = UDim2.fromScale(1,1)
 shadow.BackgroundColor3 = Color3.fromRGB(0,0,0)
-shadow.BackgroundTransparency = 0.75
+shadow.BackgroundTransparency = 0.7
 shadow.ZIndex = 0
 Instance.new("UICorner", shadow).CornerRadius = UDim.new(0,28)
 
@@ -83,7 +93,7 @@ TweenService:Create(frame,TweenInfo.new(0.5,Enum.EasingStyle.Back,Enum.EasingDir
 local icon = Instance.new("ImageLabel", frame)
 icon.Size = UDim2.fromScale(0.15,0.15)
 icon.Position = UDim2.fromScale(0.05,0.02)
-icon.Image = "rbxassetid://71212053414568"
+icon.Image = "rbxassetid://71212053414568" -- ganti icon keren
 icon.BackgroundTransparency = 1
 icon.ScaleType = Enum.ScaleType.Fit
 
@@ -103,6 +113,7 @@ mainTab.Size = UDim2.fromScale(1,0.8)
 mainTab.Position = UDim2.fromScale(0,0.18)
 mainTab.BackgroundTransparency = 1
 
+-- INPUT BOX
 local box = Instance.new("TextBox", mainTab)
 box.Size = UDim2.fromScale(0.85,0.18)
 box.Position = UDim2.fromScale(0.075,0.05)
@@ -113,6 +124,7 @@ box.BackgroundColor3 = Color3.fromRGB(35,35,35)
 box.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", box).CornerRadius = UDim.new(0,20)
 
+-- STATUS LABEL
 local status = Instance.new("TextLabel", mainTab)
 status.Size = UDim2.fromScale(1,0.12)
 status.Position = UDim2.fromScale(0,0.28)
@@ -122,6 +134,7 @@ status.TextScaled = true
 status.BackgroundTransparency = 1
 status.TextColor3 = Color3.fromRGB(255,80,80)
 
+-- COUNTDOWN LABEL
 local countdown = Instance.new("TextLabel", mainTab)
 countdown.Size = UDim2.fromScale(1,0.1)
 countdown.Position = UDim2.fromScale(0,0.4)
@@ -131,6 +144,7 @@ countdown.TextScaled = true
 countdown.BackgroundTransparency = 1
 countdown.TextColor3 = Color3.fromRGB(200,200,200)
 
+-- VERIFY BUTTON
 local verify = Instance.new("TextButton", mainTab)
 verify.Size = UDim2.fromScale(0.85,0.18)
 verify.Position = UDim2.fromScale(0.075,0.55)
@@ -141,7 +155,7 @@ verify.BackgroundColor3 = Color3.fromRGB(255,0,180)
 verify.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", verify).CornerRadius = UDim.new(0,22)
 
--- Ripple effect
+-- RIPPLE EFFECT
 local function rippleEffect(btn)
     local ripple = Instance.new("Frame", btn)
     ripple.Size = UDim2.fromScale(0,0)
@@ -150,22 +164,29 @@ local function rippleEffect(btn)
     ripple.BackgroundColor3 = Color3.fromRGB(255,255,255)
     ripple.BackgroundTransparency = 0.5
     Instance.new("UICorner", ripple).CornerRadius = UDim.new(1,0)
-    TweenService:Create(ripple, TweenInfo.new(0.4, Enum.EasingStyle.Quad), {Size=UDim2.fromScale(2,2), BackgroundTransparency=1}):Play()
+    TweenService:Create(ripple,TweenInfo.new(0.4,Enum.EasingStyle.Quad),{Size=UDim2.fromScale(2,2), BackgroundTransparency=1}):Play()
     game.Debris:AddItem(ripple,0.5)
 end
 
--- POPUP FUNCTION (pojok kanan bawah)
-local function createPopup(msg,color)
+-- MODERN POPUP FUNCTION
+local function createPopup(msg,color,iconId)
     local pop = Instance.new("Frame", gui)
     pop.Size = UDim2.fromScale(0,0.08)
-    pop.Position = UDim2.fromScale(0.7,0.9)
+    pop.Position = UDim2.fromScale(0.8,0.92)
     pop.AnchorPoint = Vector2.new(0.5,0.5)
     pop.BackgroundColor3 = color
     Instance.new("UICorner", pop).CornerRadius = UDim.new(0,16)
-    
+
+    local img = Instance.new("ImageLabel", pop)
+    img.Size = UDim2.fromScale(0.2,1)
+    img.Position = UDim2.fromScale(0,0)
+    img.Image = iconId or "rbxassetid://71212053414568"
+    img.BackgroundTransparency = 1
+    img.ScaleType = Enum.ScaleType.Fit
+
     local txt = Instance.new("TextLabel", pop)
-    txt.Size = UDim2.fromScale(1,1)
-    txt.Position = UDim2.fromScale(0,0)
+    txt.Size = UDim2.fromScale(0.8,1)
+    txt.Position = UDim2.fromScale(0.2,0)
     txt.Text = msg
     txt.TextScaled = true
     txt.Font = Enum.Font.GothamBold
@@ -201,7 +222,7 @@ verify.MouseButton1Click:Connect(function()
         status.TextColor3 = Color3.fromRGB(0,255,120)
         status.Text = "KEY VALID"
         successSound:Play()
-        createPopup("KEY VERIFIED!",Color3.fromRGB(0,200,120))
+        createPopup("KEY VERIFIED!",Color3.fromRGB(0,200,120),"rbxassetid://71212053414568")
 
         local check = Instance.new("TextLabel", mainTab)
         check.Size = UDim2.fromScale(0.3,0.3)
@@ -233,12 +254,14 @@ verify.MouseButton1Click:Connect(function()
         status.Text = msg
         countdown.Text = ""
         errorSound:Play()
-        createPopup(msg,Color3.fromRGB(200,50,50))
+        createPopup(msg,Color3.fromRGB(200,50,50),"rbxassetid://71212053414568")
     end
 end)
 
+-- START NOTIFICATION
 StarterGui:SetCore("SendNotification",{
     Title="Premium Key System",
     Text="Enter your key",
-    Duration=3
+    Duration=3,
+    Icon="rbxassetid://71212053414568"
 })
