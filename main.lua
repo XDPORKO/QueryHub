@@ -69,7 +69,9 @@ getgenv().__QUERYHUB_SESSION = {
     verified = false,
     userid = nil,
     executor = nil,
-    time = 0
+    time = 0,
+    lastTry = nil,
+    fail = 0
 }
 getgenv().__QUERYHUB_LOCK = false
 --================== UTILS ==================--
