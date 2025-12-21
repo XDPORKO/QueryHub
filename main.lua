@@ -1,6 +1,3 @@
---================================================--
--- CONFIG
---================================================--
 local KEY_URL  = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/key.txt"
 local MAIN_URL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/p1.lua"
 
