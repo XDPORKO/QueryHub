@@ -210,7 +210,7 @@ Rayfield:Notify({
     Image = ICON_SUCCESS
 })
 
-task.delay(0.8, function()
+task.delay(5, function()
     Rayfield:Destroy()
     loadstring(game:HttpGet(MAIN_URL))()
 end)
