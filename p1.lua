@@ -38,7 +38,7 @@ local State = {
 --========================================================--
 -- SAVE MANAGER
 --========================================================--
-local SaveFile = "MobileCombatHubV5.json"
+local SaveFile = "MobileHubV5.json"
 
 local function SaveState()
     pcall(function()
@@ -81,10 +81,6 @@ local Window = Rayfield:CreateWindow({
     LoadingTitle = "Universal Script • V1.0",
     LoadingSubtitle = "Develope By Rapp.site.vip",
     Icon = crot,
-    MinimizeButton = {
-        Image = crot,
-        Text = "QueryHUB"
-    },
     ConfigurationSaving = {
     Enabled = false
     },
@@ -106,21 +102,21 @@ end
 --========================================================--
 -- TABS
 --========================================================--
-local CombatTab = Window:CreateTab("Main", 137778793211272)
-local TrollTab  = Window:CreateTab("IDK", 6031071053)
-local SystemTab = Window:CreateTab("Server", 6031075931)
+local MainTab = Window:CreateTab("Main", 6031071053)
+local TrollTab  = Window:CreateTab("Troll", 6031075929)
+local SystemTab = Window:CreateTab("Server", 6031075928)
 
 --========================================================--
--- COMBAT
+-- Main
 --========================================================--
 
-CombatTab:CreateToggle({
+MainTab:CreateToggle({
     Name = "ESP",
     CurrentValue = State.ESP,
     Callback = function(v)
         State.ESP = v
         SaveState()
-        Notify("Combat","ESP "..(v and "ON" or "OFF"))
+        Notify("Main","ESP "..(v and "ON" or "OFF"))
     end
 })
 
@@ -134,6 +130,7 @@ SystemTab:CreateToggle({
         State.AntiVoid = v
         getgenv().AntiVoidHandle = v
         SaveState()
+        Notify("System","Anti Void "..(v and "ON" or "OFF"))
     end
 })
 
@@ -143,6 +140,7 @@ SystemTab:CreateToggle({
     Callback = function(v)
         getgenv().ED_AntiKick.Enabled = v
         SaveState()
+        Notify("System","Anti Kick "..(v and "ON" or "OFF"))
     end
 })
 
@@ -152,6 +150,7 @@ SystemTab:CreateToggle({
     Callback = function(v)
         State.AntiAFK = v
         SaveState()
+        Notify("System","Anti AFK "..(v and "ON" or "OFF"))
     end
 })
 
@@ -161,6 +160,7 @@ SystemTab:CreateToggle({
     Callback = function(v)
         State.AutoRejoin = v
         SaveState()
+        Notify("System","Auto Rejoin "..(v and "ON" or "OFF"))
     end
 })
 
@@ -190,16 +190,18 @@ TrollTab:CreateToggle({
     Callback = function(v)
         State.AutoFling = v
         SaveState()
+        Notify("Troll","Auto Fling "..(v and "ON" or "OFF"))
     end
 })
 
 TrollTab:CreateDropdown({
     Name = "Fling Mode",
     Options = {"Normal","Orbit","Tornado"},
-    CurrentOption = State.FlingMode,
+    CurrentOption = {State.FlingMode},
     Callback = function(v)
-        State.FlingMode = v
+        State.FlingMode = v[1]
         SaveState()
+        Notify("Troll", "Fling Mode "..State.FlingMode)
     end
 })
 
@@ -211,6 +213,7 @@ TrollTab:CreateSlider({
     Callback = function(v)
         State.Power = v
         SaveState()
+        Notify("Troll", "Power set to "..v)
     end
 })
 
@@ -220,6 +223,7 @@ TrollTab:CreateToggle({
     Callback = function(v)
         State.CounterFling = v
         SaveState()
+        Notify("Troll","Counter Fling "..(v and "ON" or "OFF"))
     end
 })
 
@@ -229,6 +233,7 @@ TrollTab:CreateToggle({
     Callback = function(v)
         State.BringLoop = v
         SaveState()
+        Notify("Troll","Bring All "..(v and "ON" or "OFF"))
     end
 })
 
@@ -292,14 +297,132 @@ end)
 --========================================================--
 -- AUTO FLING + COUNTER
 --========================================================--
+local function RealFling(targetHRP)
+    local myHRP = GetHRP(lp.Character)
+    if not myHRP or not targetHRP then return end
+
+    -- paksa ownership (executor wajib support)
+    pcall(function()
+        sethiddenproperty(myHRP, "NetworkOwnershipRule", Enum.NetworkOwnership.Manual)
+        sethiddenproperty(myHRP, "NetworkOwner", lp)
+    end)
+
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(9e9,9e9,9e9)
+    bv.Velocity = (targetHRP.Position - myHRP.Position).Unit * State.Power
+    bv.Parent = myHRP
+
+    local bav = Instance.new("BodyAngularVelocity")
+    bav.MaxTorque = Vector3.new(9e9,9e9,9e9)
+    bav.AngularVelocity = Vector3.new(0,60,0)
+    bav.Parent = myHRP
+
+    task.delay(0.25,function()
+        bv:Destroy()
+        bav:Destroy()
+    end)
+end
+
 local flingCooldown = 0
+local activeForces = {}
+local spinForces = {}
+
+local function ClearSpin(hrp)
+    if spinForces[hrp] then
+        for _,v in ipairs(spinForces[hrp]) do
+            if v and v.Parent then v:Destroy() end
+        end
+        spinForces[hrp] = nil
+    end
+end
+
+local function SpinFling(myHRP, targetHRP)
+    ClearSpin(myHRP)
+
+    -- paksa ownership (kalau executor support)
+    pcall(function()
+        sethiddenproperty(myHRP, "NetworkOwnershipRule", Enum.NetworkOwnership.Manual)
+        sethiddenproperty(myHRP, "NetworkOwner", lp)
+    end)
+
+    -- tempel ke target (biar konsisten)
+    myHRP.CFrame = targetHRP.CFrame * CFrame.new(0, 0, -3)
+
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bv.Velocity =
+        (myHRP.CFrame.RightVector * State.Power) +
+        Vector3.new(0, State.Power * 0.35, 0)
+    bv.Parent = myHRP
+
+    local bav = Instance.new("BodyAngularVelocity")
+    bav.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    bav.AngularVelocity = Vector3.new(0, 120, 0) -- KECEPATAN MUTER
+    bav.Parent = myHRP
+
+    spinForces[myHRP] = {bv, bav}
+
+    task.delay(0.35, function()
+        ClearSpin(myHRP)
+    end)
+end
+
+local function ClearForces(hrp)
+    if activeForces[hrp] then
+        for _,v in ipairs(activeForces[hrp]) do
+            if v and v.Parent then
+                v:Destroy()
+            end
+        end
+        activeForces[hrp] = nil
+    end
+end
+
+local function ApplyFling(myHRP, targetHRP)
+    ClearForces(myHRP)
+
+    -- paksa ownership (kalau executor support)
+    pcall(function()
+        sethiddenproperty(myHRP, "NetworkOwnershipRule", Enum.NetworkOwnership.Manual)
+        sethiddenproperty(myHRP, "NetworkOwner", lp)
+    end)
+
+    local bv = Instance.new("BodyVelocity")
+    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+
+    local bav = Instance.new("BodyAngularVelocity")
+    bav.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+
+    if State.FlingMode == "Normal" then
+        bv.Velocity =
+            (targetHRP.Position - myHRP.Position).Unit * State.Power
+        bav.AngularVelocity = Vector3.new(0, 50, 0)
+
+    elseif State.FlingMode == "Orbit" then
+        bv.Velocity =
+            (myHRP.CFrame.RightVector * State.Power)
+        bav.AngularVelocity = Vector3.new(0, 80, 0)
+
+    elseif State.FlingMode == "Tornado" then
+        bv.Velocity = Vector3.new(0, State.Power, 0)
+        bav.AngularVelocity = Vector3.new(0, 100, 0)
+    end
+
+    bv.Parent = myHRP
+    bav.Parent = myHRP
+
+    activeForces[myHRP] = {bv, bav}
+
+    task.delay(0.25, function()
+        ClearForces(myHRP)
+    end)
+end
 
 RunService.Heartbeat:Connect(function()
     if not State.AutoFling then return end
     if tick() - flingCooldown < 0.25 then return end
 
-    local myChar = lp.Character
-    local myHRP = GetHRP(myChar)
+    local myHRP = GetHRP(lp.Character)
     if not myHRP then return end
 
     for _,p in ipairs(Players:GetPlayers()) do
@@ -308,22 +431,7 @@ RunService.Heartbeat:Connect(function()
             if tHRP then
                 flingCooldown = tick()
 
-                if State.FlingMode == "Normal" then
-                    myHRP.CFrame = tHRP.CFrame * CFrame.new(0,0,-2)
-                    myHRP.AssemblyLinearVelocity =
-                        (tHRP.Position - myHRP.Position).Unit * State.Power
-
-                elseif State.FlingMode == "Orbit" then
-                    myHRP.CFrame =
-                        tHRP.CFrame *
-                        CFrame.Angles(0, tick() * 5, 0) *
-                        CFrame.new(0,0,6)
-
-                elseif State.FlingMode == "Tornado" then
-                    myHRP.AssemblyLinearVelocity =
-                        Vector3.new(0, State.Power, 0)
-                end
-
+                SpinFling(myHRP, tHRP)
                 break
             end
         end
@@ -335,20 +443,44 @@ local lastSafeCF
 RunService.Heartbeat:Connect(function()
     if not State.CounterFling then return end
 
-    local char = lp.Character
-    local hrp = GetHRP(char)
+    local hrp = GetHRP(lp.Character)
     if not hrp then return end
 
     local vel = hrp.AssemblyLinearVelocity.Magnitude
 
-    if vel < 60 then
+    if vel < 50 then
         lastSafeCF = hrp.CFrame
     elseif vel > 120 and lastSafeCF then
+        ClearForces(hrp)
         hrp.AssemblyLinearVelocity = Vector3.zero
         hrp.CFrame = lastSafeCF
     end
 end)
 
+task.spawn(function()
+    while task.wait(0.2) do
+        if not State.BringLoop then continue end
+
+        local myHRP = GetHRP(lp.Character)
+        if not myHRP then continue end
+
+        for _,p in ipairs(Players:GetPlayers()) do
+            if p ~= lp and p.Character and IsAlive(p.Character) then
+                local hrp = GetHRP(p.Character)
+                if hrp then
+                    pcall(function()
+                        sethiddenproperty(hrp, "NetworkOwnershipRule", Enum.NetworkOwnership.Manual)
+                        sethiddenproperty(hrp, "NetworkOwner", lp)
+                    end)
+
+                    hrp.CFrame =
+                        myHRP.CFrame *
+                        CFrame.new(math.random(-3,3), 0, math.random(-6,-8))
+                end
+            end
+        end
+    end
+end)
 --========================================================--
 -- ESP
 --========================================================--
@@ -476,27 +608,9 @@ Players.PlayerRemoving:Connect(function(plr)
     end
 end)
 
-task.spawn(function()
-    while task.wait(0.35) do
-        if not State.BringLoop then continue end
-
-        local myChar = lp.Character
-        local myHRP = GetHRP(myChar)
-        if not myHRP then continue end
-
-        for _,p in ipairs(Players:GetPlayers()) do
-            if p ~= lp and p.Character and IsAlive(p.Character) then
-                local hrp = GetHRP(p.Character)
-                if hrp then
-                    hrp.CFrame = myHRP.CFrame * CFrame.new(math.random(-4,4), 0, math.random(-4,-6))
-                end
-            end
-        end
-    end
-end)
-
+task.wait(0.35)
 Notify("[ SYSTEM ] QueryHub","Loaded Script..!",4)
-task.wait(0.5)
+task.wait(4)
 Notify("[ SYSTEM ] QueryHub","Initializing Executor",4)
-task.wait(0.55)
+task.wait(7)
 Notify("[ SYSTEM ] QueryHub","Succes Loaded Script",5)
