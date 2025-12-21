@@ -8,7 +8,8 @@ local function HardKick(reason)
     pcall(function()
         lp:Kick("[ QUERYHUB SECURITY ] "..tostring(reason))
     end)
-    task.wait(1)
+    task.wait()
+    error(reason, 0)
     while true do end
 end
 
