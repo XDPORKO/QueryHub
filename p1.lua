@@ -8,7 +8,7 @@ local S = getgenv().__QUERYHUB_SESSION
 
 if (not S)
 or (S.verified ~= true)
-or (S.userid ~= lp.UserId)
+or (S.userid ~= lozer.UserId)
 or (not getgenv().__QUERYHUB_LOCK) then
 	lozer:Kick("[ SYSTEM ] Eits, kalo bypass mikir kidsss 🤭💦")
 	return
