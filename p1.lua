@@ -19,7 +19,7 @@ if not S
 	or type(S.token) ~= "string"
 	or not getgenv().__QUERYHUB_LOCK
 then
-	lp:Kick("[ SYSTEM ] Eits, kalo bypass mikir kidsss 🤭💦")
+	lozer:Kick("[ SYSTEM ] Eits, kalo bypass mikir kidsss 🤭💦")
 	return
 end
 
