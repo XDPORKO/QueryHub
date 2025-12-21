@@ -1,8 +1,3 @@
- --========================================================--
--- MOBILE COMBAT HUB v5 (RAYFIELD EDITION)
--- SAFE + SAVE + MOBILE + NOTIFY
---========================================================--
-
 -- SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
