@@ -97,6 +97,7 @@ local Window = Rayfield:CreateWindow({
     LoadingTitle = "Universal Script • V1.0",
     LoadingSubtitle = "Develope By Rapp.site.vip",
     Icon = crot,
+    Theme = "Ocean",
     ConfigurationSaving = {
     Enabled = false
     },
