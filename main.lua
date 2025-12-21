@@ -33,18 +33,18 @@ end
 
 -- SOUNDS
 local clickSound = Instance.new("Sound", lp.PlayerGui)
-clickSound.SoundId = "rbxassetid://12222216"
-clickSound.Volume = 0.5
+clickSound.SoundId = "rbxassetid://9118821771"
+clickSound.Volume = 0.6
 
 local successSound = Instance.new("Sound", lp.PlayerGui)
-successSound.SoundId = "rbxassetid://12222225"
-successSound.Volume = 0.6
+successSound.SoundId = "rbxassetid://9118821842"
+successSound.Volume = 0.7
 
 local errorSound = Instance.new("Sound", lp.PlayerGui)
-errorSound.SoundId = "rbxassetid://12222230"
-errorSound.Volume = 0.6
+errorSound.SoundId = "rbxassetid://9118821911"
+errorSound.Volume = 0.7
 
--- GUI
+-- GUI MAIN
 local gui = Instance.new("ScreenGui", lp.PlayerGui)
 gui.Name = "UltraPremiumGUI"
 gui.ResetOnSpawn = false
@@ -76,14 +76,14 @@ grad.Rotation = 45
 
 -- POPUP ANIMATION
 TweenService:Create(frame,TweenInfo.new(0.5,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{
-    Size = UDim2.fromScale(0.55,0.5)
+    Size = UDim2.fromScale(0.55,0.45)
 }):Play()
 
 -- ICON SCRIPT
 local icon = Instance.new("ImageLabel", frame)
 icon.Size = UDim2.fromScale(0.15,0.15)
 icon.Position = UDim2.fromScale(0.05,0.02)
-icon.Image = "rbxassetid://INSERT_ICON_ASSETID_HERE" -- ganti dengan asset id icon
+icon.Image = "rbxassetid://INSERT_ICON_ASSETID_HERE"
 icon.BackgroundTransparency = 1
 icon.ScaleType = Enum.ScaleType.Fit
 
@@ -97,54 +97,11 @@ title.TextScaled = true
 title.TextColor3 = Color3.fromRGB(255,255,255)
 title.BackgroundTransparency = 1
 
--- TAB BAR
-local tabBar = Instance.new("Frame", frame)
-tabBar.Size = UDim2.fromScale(1,0.12)
-tabBar.Position = UDim2.fromScale(0,0.15)
-tabBar.BackgroundTransparency = 1
-
-local tabs = {
-    {Name="Main",Icon="🔑"},
-    {Name="Info",Icon="ℹ️"},
-    {Name="Settings",Icon="⚙️"}
-}
-
-local tabFrames = {}
-for i,t in ipairs(tabs) do
-    local btn = Instance.new("TextButton", tabBar)
-    btn.Size = UDim2.fromScale(1/#tabs,1)
-    btn.Position = UDim2.fromScale((i-1)/#tabs,0)
-    btn.Text = t.Icon.." "..t.Name
-    btn.TextScaled = true
-    btn.Font = Enum.Font.GothamBold
-    btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,14)
-
-    -- Hover animation
-    btn.MouseEnter:Connect(function()
-        TweenService:Create(btn,TweenInfo.new(0.25),{BackgroundColor3=Color3.fromRGB(80,0,180)}):Play()
-    end)
-    btn.MouseLeave:Connect(function()
-        TweenService:Create(btn,TweenInfo.new(0.25),{BackgroundColor3=Color3.fromRGB(40,40,40)}):Play()
-    end)
-
-    local f = Instance.new("Frame", frame)
-    f.Size = UDim2.fromScale(1,0.65)
-    f.Position = UDim2.fromScale(0,0.25)
-    f.BackgroundTransparency = 1
-    f.Visible = (i==1)
-    tabFrames[t.Name] = f
-
-    btn.MouseButton1Click:Connect(function()
-        clickSound:Play()
-        for _,v in pairs(tabFrames) do v.Visible = false end
-        f.Visible = true
-    end)
-end
-
--- MAIN TAB CONTENT
-local mainTab = tabFrames["Main"]
+-- MAIN TAB
+local mainTab = Instance.new("Frame", frame)
+mainTab.Size = UDim2.fromScale(1,0.8)
+mainTab.Position = UDim2.fromScale(0,0.18)
+mainTab.BackgroundTransparency = 1
 
 local box = Instance.new("TextBox", mainTab)
 box.Size = UDim2.fromScale(0.85,0.18)
@@ -197,6 +154,32 @@ local function rippleEffect(btn)
     game.Debris:AddItem(ripple,0.5)
 end
 
+-- POPUP FUNCTION (pojok kanan bawah)
+local function createPopup(msg,color)
+    local pop = Instance.new("Frame", gui)
+    pop.Size = UDim2.fromScale(0,0.08)
+    pop.Position = UDim2.fromScale(0.7,0.9)
+    pop.AnchorPoint = Vector2.new(0.5,0.5)
+    pop.BackgroundColor3 = color
+    Instance.new("UICorner", pop).CornerRadius = UDim.new(0,16)
+    
+    local txt = Instance.new("TextLabel", pop)
+    txt.Size = UDim2.fromScale(1,1)
+    txt.Position = UDim2.fromScale(0,0)
+    txt.Text = msg
+    txt.TextScaled = true
+    txt.Font = Enum.Font.GothamBold
+    txt.TextColor3 = Color3.fromRGB(255,255,255)
+    txt.BackgroundTransparency = 1
+
+    TweenService:Create(pop,TweenInfo.new(0.5,Enum.EasingStyle.Back),{Size=UDim2.fromScale(0.25,0.08)}):Play()
+    task.delay(2, function()
+        TweenService:Create(pop,TweenInfo.new(0.5,Enum.EasingStyle.Back),{Size=UDim2.fromScale(0,0)}):Play()
+        task.wait(0.5)
+        pop:Destroy()
+    end)
+end
+
 -- VERIFY LOGIC
 verify.MouseButton1Click:Connect(function()
     rippleEffect(verify)
@@ -218,6 +201,7 @@ verify.MouseButton1Click:Connect(function()
         status.TextColor3 = Color3.fromRGB(0,255,120)
         status.Text = "KEY VALID"
         successSound:Play()
+        createPopup("KEY VERIFIED!",Color3.fromRGB(0,200,120))
 
         local check = Instance.new("TextLabel", mainTab)
         check.Size = UDim2.fromScale(0.3,0.3)
@@ -249,6 +233,7 @@ verify.MouseButton1Click:Connect(function()
         status.Text = msg
         countdown.Text = ""
         errorSound:Play()
+        createPopup(msg,Color3.fromRGB(200,50,50))
     end
 end)
 
