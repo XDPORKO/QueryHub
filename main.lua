@@ -30,7 +30,8 @@ local function tamperDetected()
     pcall(function()
         lp:Kick("[ SYSTEM ] Script modified or corrupted")
     end)
-    while true do end
+    task.wait(2)
+    return
 end
 
 if _G.__QH_LOADED or __SIGNATURE ~= "QH_SIG_V1" then
