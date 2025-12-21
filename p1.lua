@@ -902,5 +902,5 @@ Players.PlayerRemoving:Connect(function(plr)
     end
 end)
 
-task.wait(4)
+task.wait(2)
 Notify("[ SYSTEM ] QueryHub","Succesfully Load Scripts..",4)
