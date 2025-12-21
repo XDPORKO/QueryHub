@@ -9,6 +9,13 @@ local RunService = game:GetService("RunService")
 local SoundService = game:GetService("SoundService")
 local lp = Players.LocalPlayer
 
+-- SESSION TABLE
+if not _G.VerifiedPlayers then _G.VerifiedPlayers = {} end
+if _G.VerifiedPlayers[lp.UserId] then
+    loadstring(game:HttpGet(MAIN_URL))()
+    return
+end
+
 -- KEY CHECK
 local function checkKey(input)
     local raw = game:HttpGet(KEY_URL)
@@ -26,7 +33,7 @@ end
 
 -- SOUNDS
 local clickSound = Instance.new("Sound", lp.PlayerGui)
-clickSound.SoundId = "rbxassetid://12222216" -- contoh asset id
+clickSound.SoundId = "rbxassetid://12222216"
 clickSound.Volume = 0.5
 
 local successSound = Instance.new("Sound", lp.PlayerGui)
@@ -69,14 +76,22 @@ grad.Rotation = 45
 
 -- POPUP ANIMATION
 TweenService:Create(frame,TweenInfo.new(0.5,Enum.EasingStyle.Back,Enum.EasingDirection.Out),{
-    Size = UDim2.fromScale(0.52,0.45)
+    Size = UDim2.fromScale(0.55,0.5)
 }):Play()
+
+-- ICON SCRIPT
+local icon = Instance.new("ImageLabel", frame)
+icon.Size = UDim2.fromScale(0.15,0.15)
+icon.Position = UDim2.fromScale(0.05,0.02)
+icon.Image = "rbxassetid://INSERT_ICON_ASSETID_HERE" -- ganti dengan asset id icon
+icon.BackgroundTransparency = 1
+icon.ScaleType = Enum.ScaleType.Fit
 
 -- TITLE
 local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.fromScale(1,0.15)
-title.Position = UDim2.fromScale(0,0)
-title.Text = "🔐 PREMIUM KEY SYSTEM"
+title.Size = UDim2.fromScale(0.8,0.15)
+title.Position = UDim2.fromScale(0.2,0.02)
+title.Text = "PREMIUM KEY SYSTEM"
 title.Font = Enum.Font.GothamBold
 title.TextScaled = true
 title.TextColor3 = Color3.fromRGB(255,255,255)
@@ -106,7 +121,7 @@ for i,t in ipairs(tabs) do
     btn.TextColor3 = Color3.fromRGB(255,255,255)
     Instance.new("UICorner", btn).CornerRadius = UDim.new(0,14)
 
-    -- HOVER ANIMATION
+    -- Hover animation
     btn.MouseEnter:Connect(function()
         TweenService:Create(btn,TweenInfo.new(0.25),{BackgroundColor3=Color3.fromRGB(80,0,180)}):Play()
     end)
@@ -169,7 +184,7 @@ verify.BackgroundColor3 = Color3.fromRGB(255,0,180)
 verify.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", verify).CornerRadius = UDim.new(0,22)
 
--- RIPLE EFFECT
+-- Ripple effect
 local function rippleEffect(btn)
     local ripple = Instance.new("Frame", btn)
     ripple.Size = UDim2.fromScale(0,0)
@@ -189,7 +204,6 @@ verify.MouseButton1Click:Connect(function()
     status.TextColor3 = Color3.fromRGB(255,255,0)
     status.Text = "CHECKING..."
 
-    -- loader bar
     local bar = Instance.new("Frame", mainTab)
     bar.Size = UDim2.fromScale(0,0.04)
     bar.Position = UDim2.fromScale(0.075,0.48)
@@ -200,6 +214,7 @@ verify.MouseButton1Click:Connect(function()
 
     local ok,msg,expire = checkKey(box.Text)
     if ok then
+        _G.VerifiedPlayers[lp.UserId] = true
         status.TextColor3 = Color3.fromRGB(0,255,120)
         status.Text = "KEY VALID"
         successSound:Play()
@@ -216,7 +231,6 @@ verify.MouseButton1Click:Connect(function()
         check.TextTransparency = 1
         TweenService:Create(check, TweenInfo.new(0.4), {TextTransparency=0}):Play()
 
-        -- countdown
         task.spawn(function()
             while os.time() < expire do
                 local s = expire - os.time()
