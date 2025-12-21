@@ -215,7 +215,7 @@ Tab:CreateButton({
         end)
 
         if not okLoad then
-            HardKick("Main loader tampered")
+            warn("Main loader tampered")
         end
     end
 })
