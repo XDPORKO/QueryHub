@@ -6,17 +6,10 @@ local LOADER_URL =
 
 local S = getgenv().__QUERYHUB_SESSION
 
-local function BackToGateway()
-    getgenv().__QUERYHUB_SESSION = nil
-    getgenv().__QUERYHUB_LOCK = nil
-    task.wait(0.15)
-    loadstring(game:HttpGet(LOADER_URL))()
-end
-
-if not S
-	or S.verified ~= true
-	or not S.userid ~= lozer.UserId
-then
+if (not S)
+or (S.verified ~= true)
+or (S.userid ~= lp.UserId)
+or (not getgenv().__QUERYHUB_LOCK) then
 	lozer:Kick("[ SYSTEM ] Eits, kalo bypass mikir kidsss 🤭💦")
 	return
 end
