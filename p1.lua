@@ -107,7 +107,6 @@ end
 -- TABS
 --========================================================--
 local CombatTab = Window:CreateTab("Main", 137778793211272)
-local RageTab   = Window:CreateTab("Troll", 6031075938)
 local TrollTab  = Window:CreateTab("IDK", 6031071053)
 local SystemTab = Window:CreateTab("Server", 6031075931)
 
@@ -497,5 +496,7 @@ task.spawn(function()
 end)
 
 Notify("[ SYSTEM ] QueryHub","Loaded Script..!",4)
+task.wait(0.5)
 Notify("[ SYSTEM ] QueryHub","Initializing Executor",4)
+task.wait(0.55)
 Notify("[ SYSTEM ] QueryHub","Succes Loaded Script",5)
