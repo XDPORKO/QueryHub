@@ -10,15 +10,12 @@ local lp = Players.LocalPlayer
 --================== HARD KICK (REAL STOP) ==================--
 local function HardKick(reason)
     reason = tostring(reason)
-
-    -- mark dead
     getgenv().__QUERYHUB_DEAD = true
 
     pcall(function()
         lp:Kick("[ QUERYHUB SECURITY ] "..reason)
     end)
 
-    -- freeze all threads
     task.delay(0, function()
         while true do task.wait() end
     end)
@@ -55,7 +52,7 @@ if not okExec then
     HardKick("Executor not supported : "..execName)
 end
 
---================== ANTI DOUBLE EXECUTE ==================--
+--================== ANTI DOUBLE EXEC ==================--
 if getgenv().__QUERYHUB_LOCK then
     HardKick("Session already locked")
 end
@@ -73,7 +70,6 @@ local MAIN_URL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/p1.lua
 local ICON_APP     = 6031071053
 local ICON_KEY     = 6031075924
 local ICON_SUCCESS = 6031094678
-local ICON_ERROR   = 6031075925
 
 --================== UI LIB ==================--
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
@@ -112,7 +108,6 @@ local function getExpire(typeKey, y, m, d)
         day = tonumber(d),
         hour = 23, min = 59, sec = 59
     })
-
     if typeKey == "DAILY" then
         return base + 86400
     elseif typeKey == "WEEKLY" then
@@ -137,12 +132,10 @@ local function checkKey(input)
             if not y then
                 HardKick("Corrupted key data")
             end
-
             local expire = getExpire(typeKey, y, m, d)
             if os.time() > expire then
                 HardKick("Expired key usage")
             end
-
             return true, expire, typeKey
         end
     end
@@ -190,20 +183,14 @@ Tab:CreateButton({
         S.lastTry = os.clock()
 
         if INPUT_KEY == "" then
-            status:Set({
-                Title = "Status",
-                Content = "PLEASE INPUT KEY"
-            })
+            status:Set("PLEASE INPUT KEY")
             return
         end
 
         local ok, expire, typeKey = checkKey(INPUT_KEY)
         if not ok then
             S.fail = S.fail + 1
-            status:Set({
-                Title = "Status",
-                Content = "INVALID KEY"
-            })
+            status:Set("INVALID KEY")
             if S.fail >= 2 then
                 HardKick("Multiple invalid key attempts")
             end
