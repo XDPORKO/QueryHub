@@ -43,36 +43,155 @@ local State = {
     Notifications = true
 }
 
---========================================================--
--- GUI CORE (MOBILE FRIENDLY)
---========================================================--
 local gui = Instance.new("ScreenGui", lp.PlayerGui)
-gui.Name = "MobileCombatHubV3"
+gui.Name = "MobileCombatHubV5"
 gui.ResetOnSpawn = false
+gui.DisplayOrder = 1000
 
+-- SERVICES
+local TweenService = game:GetService("TweenService")
+
+--================ OPEN BUTTON =========================--
 local open = Instance.new("TextButton", gui)
-open.Size = UDim2.fromScale(0.14,0.08)
+open.Size = UDim2.fromScale(0.15,0.08)
 open.Position = UDim2.fromScale(0.02,0.45)
 open.Text = "RAGE"
 open.TextScaled = true
-open.BackgroundColor3 = Color3.fromRGB(20,20,20)
-open.TextColor3 = Color3.new(1,0,0)
+open.BackgroundColor3 = Color3.fromRGB(30,30,30)
+open.TextColor3 = Color3.fromRGB(255,50,50)
+open.AutoButtonColor = false
 open.Active = true
 open.Draggable = true
-Instance.new("UICorner", open).CornerRadius = UDim.new(0,14)
+local openUIC = Instance.new("UICorner", open)
+openUIC.CornerRadius = UDim.new(0,20)
 
-local main = Instance.new("Frame", gui)
-main.Size = UDim2.fromScale(0.6,0.75)
-main.Position = UDim2.fromScale(0.2,0.12)
-main.Visible = false
-main.BackgroundColor3 = Color3.fromRGB(15,15,15)
-main.Active = true
-main.Draggable = true
-Instance.new("UICorner", main).CornerRadius = UDim.new(0,18)
-
+-- Hover + Press Effects
+open.MouseEnter:Connect(function()
+    TweenService:Create(open, TweenInfo.new(0.2), {BackgroundColor3=Color3.fromRGB(50,50,50)}):Play()
+end)
+open.MouseLeave:Connect(function()
+    TweenService:Create(open, TweenInfo.new(0.2), {BackgroundColor3=Color3.fromRGB(30,30,30)}):Play()
+end)
 open.MouseButton1Click:Connect(function()
     main.Visible = not main.Visible
+    local goal = {Position = main.Visible and UDim2.fromScale(0.175,0.1) or UDim2.fromScale(-0.7,0.1)}
+    TweenService:Create(main, TweenInfo.new(0.3, Enum.EasingStyle.Quad), goal):Play()
 end)
+
+--================ MAIN FRAME ========================--
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.fromScale(0.65,0.8)
+main.Position = UDim2.fromScale(-0.7,0.1) -- start hidden offscreen
+main.BackgroundColor3 = Color3.fromRGB(20,20,20)
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
+local mainUIC = Instance.new("UICorner", main)
+mainUIC.CornerRadius = UDim.new(0,25)
+
+-- Shadow + Blur Effect
+local mainShadow = Instance.new("UIShadow", main)
+mainShadow.Blur = 5
+mainShadow.Color = Color3.fromRGB(0,0,0)
+mainShadow.Transparency = 0.5
+
+--================ TAB BAR ============================--
+local bar = Instance.new("Frame", main)
+bar.Size = UDim2.fromScale(1,0.12)
+bar.Position = UDim2.fromScale(0,0)
+bar.BackgroundColor3 = Color3.fromRGB(35,35,35)
+local barUIC = Instance.new("UICorner", bar)
+barUIC.CornerRadius = UDim.new(0,15)
+
+local tabs = {"COMBAT","RAGE","TROLL","SYSTEM"}
+local frames = {}
+
+for i,name in ipairs(tabs) do
+    local b = Instance.new("TextButton", bar)
+    b.Size = UDim2.fromScale(0.25,1)
+    b.Position = UDim2.fromScale((i-1)*0.25,0)
+    b.Text = name
+    b.TextScaled = true
+    b.Font = Enum.Font.GothamBold
+    b.BackgroundColor3 = Color3.fromRGB(45,45,45)
+    b.TextColor3 = Color3.fromRGB(255,255,255)
+    b.AutoButtonColor = false
+    local bUIC = Instance.new("UICorner", b)
+    bUIC.CornerRadius = UDim.new(0,12)
+
+    -- Gradient Neon Effect
+    local grad = Instance.new("UIGradient", b)
+    grad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255,100,100))}
+    grad.Rotation = 45
+
+    -- Hover + Press Tween
+    b.MouseEnter:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(70,70,70)}):Play()
+    end)
+    b.MouseLeave:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(45,45,45)}):Play()
+    end)
+
+    local f = Instance.new("ScrollingFrame", main)
+    f.Size = UDim2.fromScale(1,0.88)
+    f.Position = UDim2.fromScale(0,0.12)
+    f.BackgroundTransparency = 1
+    f.ScrollBarThickness = 10
+    f.CanvasSize = UDim2.new(0,0,2,0)
+    f.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    f.Visible = (i==1)
+    frames[name] = f
+
+    b.MouseButton1Click:Connect(function()
+        for _,v in pairs(frames) do v.Visible = false end
+        f.Visible = true
+    end)
+end
+
+--================ BUTTON CREATOR =====================--
+local function btn(parent,y,text,iconId)
+    local b = Instance.new("TextButton", parent)
+    b.Size = UDim2.fromScale(0.9,0.08)
+    b.Position = UDim2.fromScale(0.05,y)
+    b.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    b.TextColor3 = Color3.fromRGB(255,255,255)
+    b.Font = Enum.Font.Gotham
+    b.TextScaled = true
+    b.AutoButtonColor = false
+    local uic = Instance.new("UICorner", b)
+    uic.CornerRadius = UDim.new(0,16)
+
+    -- Gradient + Neon Shadow
+    local grad = Instance.new("UIGradient", b)
+    grad.Color = ColorSequence.new{ColorSequenceKeypoint.new(0, Color3.fromRGB(255,0,0)), ColorSequenceKeypoint.new(1, Color3.fromRGB(255,120,120))}
+    grad.Rotation = 45
+
+    local shadow = Instance.new("UIShadow", b)
+    shadow.Blur = 6
+    shadow.Color = Color3.fromRGB(0,0,0)
+    shadow.Transparency = 0.6
+
+    -- Icon if provided
+    if iconId then
+        local img = Instance.new("ImageLabel", b)
+        img.Size = UDim2.fromScale(0.12,0.8)
+        img.Position = UDim2.fromScale(0.02,0.1)
+        img.Image = iconId
+        img.BackgroundTransparency = 1
+    end
+
+    b.Text = text
+
+    -- Hover effect
+    b.MouseEnter:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(70,70,70)}):Play()
+    end)
+    b.MouseLeave:Connect(function()
+        TweenService:Create(b, TweenInfo.new(0.2), {BackgroundColor3 = Color3.fromRGB(50,50,50)}):Play()
+    end)
+
+    return b
+end
 
 --========================================================--
 -- TABS
