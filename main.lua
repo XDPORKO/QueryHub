@@ -188,25 +188,32 @@ task.spawn(function()
 				return
 			end
 
-			-- SUCCESS
-			getgenv().__QUERYHUB_SESSION.verified = true
+		--================== SUCCESS ==================--
+local S = getgenv().__QUERYHUB_SESSION
 
-			status:Set({
-				Title = "Status",
-				Content = "ACCESS GRANTED"
-			})
+S.verified = true
+S.userid = lp.UserId
+S.executor = identifyexecutor and identifyexecutor() or "Unknown"
+S.time = os.time()
 
-			Rayfield:Notify({
-				Title = "Access Granted",
-				Content = "Key Type : "..result,
-				Duration = 3,
-				Image = ICON_SUCCESS
-			})
+getgenv().__QUERYHUB_LOCK = true
 
-			task.delay(0.4, function()
-				Rayfield:Destroy()
-				loadstring(game:HttpGet(MAIN_URL))()
-			end)
+status:Set({
+    Title = "Status ✔",
+    Content = "ACCESS GRANTED\nKey Type : "..result
+})
+
+Rayfield:Notify({
+    Title = "Access Granted",
+    Content = "Welcome to QueryHub",
+    Duration = 4,
+    Image = ICON_SUCCESS
+})
+
+task.delay(0.8, function()
+    Rayfield:Destroy()
+    loadstring(game:HttpGet(MAIN_URL))()
+end)
 
 			return
 		end
