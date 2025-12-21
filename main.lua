@@ -70,7 +70,7 @@ getgenv().__QUERYHUB_SESSION = {
     userid = nil,
     executor = nil,
     time = 0,
-    lastTry = nil,
+    lastTry = 0,
     fail = 0
 }
 getgenv().__QUERYHUB_LOCK = false
