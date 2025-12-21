@@ -73,30 +73,31 @@ LoadState()
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
-    Name = "🔥 Mobile Combat Hub v5",
-    LoadingTitle = "Mobile Combat Hub",
-    LoadingSubtitle = "Rayfield Edition",
+    Name = "Query HUB",
+    LoadingTitle = "Universal Script • V1.0",
+    LoadingSubtitle = "Develope By Rapp.site.vip",
     Icon = 71212053414568,
     ConfigurationSaving = {Enabled = false},
     Discord = {Enabled = false},
     KeySystem = false
 })
 
-local function Notify(t, d, s)
+local function Notify(t, d, s, i)
     Rayfield:Notify({
         Title = t,
         Content = d,
-        Duration = s or 3
+        Duration = s or 3,
+        Image = i
     })
 end
 
 --========================================================--
 -- TABS
 --========================================================--
-local CombatTab = Window:CreateTab("⚔ Combat", 4483362458)
-local RageTab   = Window:CreateTab("🔥 Rage", 4483362458)
-local TrollTab  = Window:CreateTab("😈 Troll", 4483362458)
-local SystemTab = Window:CreateTab("⚙ System", 4483362458)
+local CombatTab = Window:CreateTab("Main", 137778793211272)
+local RageTab   = Window:CreateTab("Troll", 6031075938)
+local TrollTab  = Window:CreateTab("IDK", 6031071053)
+local SystemTab = Window:CreateTab("Server", 6031075931)
 
 --========================================================--
 -- COMBAT
@@ -382,5 +383,5 @@ lp.OnTeleport:Connect(function(state)
     end
 end)
 
-Notify("Mobile Combat Hub","Loaded Successfully!",4)
+Notify("QueryHUB","Loaded Successfully!",4, 71212053414568)
 warn("🔥 MOBILE COMBAT HUB v5 (RAYFIELD) LOADED")
