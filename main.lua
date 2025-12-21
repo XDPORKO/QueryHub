@@ -1,49 +1,91 @@
+--================== SERVICES ==================--
 local Players = game:GetService("Players")
+local HttpService = game:GetService("HttpService")
 local lp = Players.LocalPlayer
 
+--================== EXECUTOR WHITELIST ==================--
+local function getExecutor()
+    if identifyexecutor then
+        return tostring(identifyexecutor())
+    end
+    return "Unknown"
+end
+
+local ALLOWED_EXECUTORS = {
+    "Synapse",
+    "Fluxus",
+    "Arceus",
+    "Arceus X",
+    "Hydrogen",
+    "Delta",
+    "Codex",
+    "Trigon",
+    "Wave",
+    "Electron"
+}
+
+local function isExecutorAllowed()
+    local exec = getExecutor()
+    for _,v in ipairs(ALLOWED_EXECUTORS) do
+        if exec:lower():find(v:lower()) then
+            return true, exec
+        end
+    end
+    return false, exec
+end
+
+local okExec, execName = isExecutorAllowed()
+if not okExec then
+    pcall(function()
+        lp:Kick("[ SYSTEM ] Executor not supported : "..execName)
+    end)
+    return
+end
+
+--================== ANTI DOUBLE LOAD ==================--
 if getgenv().__QUERYHUB_LOADED then
-    lp:Kick("[ SYSTEM ] QueryHub has detected attempts to execute the script more than 2 times, please try again later")
+    warn("[QueryHub] Already loaded")
     return
 end
 getgenv().__QUERYHUB_LOADED = true
--- ================== CONFIG ==================
+
+--================== CONFIG ==================--
 local KEY_URL  = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/key.txt"
 local MAIN_URL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/p1.lua"
 
--- ================== SERVICES ==================
-
--- ================== ICONS ==================
+--================== ICONS (ROBLOX ASSET ID) ==================--
 local ICON_APP     = 6031071053
 local ICON_KEY     = 6031075924
 local ICON_SUCCESS = 6031094678
 local ICON_ERROR   = 6031075925
 local ICON_TIME    = 6031075936
 
--- ================== UI ==================
+--================== UI LIB ==================--
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
--- ================== ANTI TAMPER ==================
+--================== ANTI TAMPER ==================--
 local __SIGNATURE = "QH_SIG_V1"
-local __CHECKSUM = tostring(#KEY_URL + #MAIN_URL)
+local __CHECKSUM  = tostring(#KEY_URL + #MAIN_URL)
 
-local function tamperDetected()
+local function tamperDetected(reason)
+    warn("[QueryHub] Tamper detected :", reason)
+    task.wait(0.25)
     pcall(function()
-        lp:Kick("[ SYSTEM ] Script modified or corrupted")
+        lp:Kick("[ SYSTEM ] Script integrity failed")
     end)
-    task.wait(2)
+end
+
+if __SIGNATURE ~= "QH_SIG_V1" then
+    tamperDetected("Signature mismatch")
     return
 end
 
-if _G.__QH_LOADED or __SIGNATURE ~= "QH_SIG_V1" then
-    tamperDetected()
-end
-_G.__QH_LOADED = true
-
 if tostring(#KEY_URL + #MAIN_URL) ~= __CHECKSUM then
-    tamperDetected()
+    tamperDetected("Checksum mismatch")
+    return
 end
 
--- ================== SESSION ==================
+--================== SESSION ==================--
 getgenv().__QUERYHUB_SESSION = getgenv().__QUERYHUB_SESSION or {
     verified = false,
     lastTry = 0
@@ -54,7 +96,7 @@ if getgenv().__QUERYHUB_SESSION.verified then
     return
 end
 
--- ================== UTILS ==================
+--================== UTILS ==================--
 local function safeHttp(url)
     local ok, res = pcall(function()
         return game:HttpGet(url)
@@ -70,7 +112,7 @@ local function hash(str)
     return tostring(h)
 end
 
--- ================== KEY CHECK ==================
+--================== KEY CHECK ==================--
 local function getExpire(typeKey, y,m,d)
     local base = os.time({year=y, month=m, day=d, hour=23, min=59, sec=59})
     if typeKey == "DAILY" then
@@ -105,13 +147,14 @@ local function checkKey(input)
     return false, "INVALID KEY"
 end
 
--- ================== UI ==================
+--================== UI ==================--
 local Window = Rayfield:CreateWindow({
     Name = "QueryHub Gateway",
     LoadingTitle = "QueryHub",
     LoadingSubtitle = "Secure Verification",
     Icon = ICON_APP,
-    ConfigurationSaving = false
+    ConfigurationSaving = false,
+    KeySystem = false
 })
 
 local Tab = Window:CreateTab("Key System", ICON_KEY)
@@ -138,7 +181,7 @@ Tab:CreateButton({
         if os.clock() - getgenv().__QUERYHUB_SESSION.lastTry < 2 then
             Rayfield:Notify({
                 Title = "Wait",
-                Content = "Slow down",
+                Content = "Please slow down",
                 Duration = 2,
                 Image = ICON_TIME
             })
@@ -146,7 +189,7 @@ Tab:CreateButton({
         end
         getgenv().__QUERYHUB_SESSION.lastTry = os.clock()
 
-        status:Set({Title="Status",Content="Checking key..."})
+        status:Set({Title="Status", Content="Checking key..."})
 
         local ok, expire, typeKey = checkKey(keyBox.CurrentValue)
 
@@ -165,7 +208,8 @@ Tab:CreateButton({
                     local s = expire - os.time()
                     expiry:Set({
                         Title = "Expiry",
-                        Content = string.format("%02d:%02d:%02d",
+                        Content = string.format(
+                            "%02d:%02d:%02d",
                             math.floor(s/3600),
                             math.floor(s/60)%60,
                             s%60
@@ -185,7 +229,7 @@ Tab:CreateButton({
                 Duration = 3,
                 Image = ICON_ERROR
             })
-            status:Set({Title="Status",Content=expire})
+            status:Set({Title="Status", Content=expire})
         end
     end
 })
