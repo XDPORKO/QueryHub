@@ -1,21 +1,18 @@
---====================================================--
--- QueryHub Gateway | Secure Loader (HARD KICK EDITION)
---====================================================--
-
 --================== SERVICES ==================--
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local lp = Players.LocalPlayer
 
+--================== HARD KICK ==================--
 local function HardKick(reason)
     pcall(function()
-        lp:Kick("[ QUERYHUB SECURITY ] "..reason)
+        lp:Kick("[ QUERYHUB SECURITY ] "..tostring(reason))
     end)
     task.wait(1)
     while true do end
 end
 
---================== EXECUTOR WHITELIST ==================--
+--================== EXECUTOR CHECK ==================--
 local function getExecutor()
     if identifyexecutor then
         return tostring(identifyexecutor())
@@ -24,8 +21,9 @@ local function getExecutor()
 end
 
 local ALLOWED_EXECUTORS = {
-    "Synapse","Fluxus","Arceus","Arceus X","Hydrogen",
-    "Delta","Codex","Trigon","Wave","Electron"
+    "Synapse","Fluxus","Arceus","Arceus X",
+    "Hydrogen","Delta","Codex","Trigon",
+    "Wave","Electron"
 }
 
 local function isExecutorAllowed()
@@ -58,7 +56,6 @@ local ICON_APP     = 6031071053
 local ICON_KEY     = 6031075924
 local ICON_SUCCESS = 6031094678
 local ICON_ERROR   = 6031075925
-local ICON_TIME    = 6031075936
 
 --================== UI LIB ==================--
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
@@ -75,7 +72,7 @@ local function safeHttp(url)
     local ok, res = pcall(function()
         return game:HttpGet(url)
     end)
-    if not ok or not res then
+    if not ok or type(res) ~= "string" then
         HardKick("Network manipulation detected")
     end
     return res
@@ -84,14 +81,19 @@ end
 local function hash(str)
     local h = 0
     for i = 1, #str do
-        h = (h * 33 + string.byte(str, i)) % 2^31
+        h = (h * 33 + string.byte(str, i)) % 2147483647
     end
     return tostring(h)
 end
 
---================== KEY CHECK ==================--
-local function getExpire(typeKey, y,m,d)
-    local base = os.time({year=y, month=m, day=d, hour=23, min=59, sec=59})
+--================== KEY SYSTEM ==================--
+local function getExpire(typeKey, y, m, d)
+    local base = os.time({
+        year = tonumber(y),
+        month = tonumber(m),
+        day = tonumber(d),
+        hour = 23, min = 59, sec = 59
+    })
     if typeKey == "DAILY" then
         return base + 86400
     elseif typeKey == "WEEKLY" then
@@ -102,6 +104,10 @@ local function getExpire(typeKey, y,m,d)
 end
 
 local function checkKey(input)
+    if type(input) ~= "string" or #input < 5 then
+        return false, "INVALID FORMAT"
+    end
+
     local raw = safeHttp(KEY_URL)
     local inputHash = hash(input)
 
@@ -109,6 +115,9 @@ local function checkKey(input)
         local key, typeKey, exp = line:match("(.+)|(.+)|(.+)")
         if key and hash(key) == inputHash then
             local y,m,d = exp:match("(%d+)%-(%d+)%-(%d+)")
+            if not y then
+                HardKick("Corrupted key data")
+            end
             local expire = getExpire(typeKey, y,m,d)
             if os.time() > expire then
                 HardKick("Expired key usage")
@@ -136,10 +145,16 @@ local status = Tab:CreateParagraph({
     Content = "Waiting for key"
 })
 
-local keyBox = Tab:CreateInput({
+-- 🔑 INPUT FIX (ANTI CALLBACK ERROR)
+local INPUT_KEY = ""
+
+Tab:CreateInput({
     Name = "Premium Key",
     PlaceholderText = "ENTER YOUR KEY",
-    RemoveTextAfterFocusLost = false
+    RemoveTextAfterFocusLost = false,
+    Callback = function(text)
+        INPUT_KEY = tostring(text)
+    end
 })
 
 Tab:CreateButton({
@@ -152,18 +167,29 @@ Tab:CreateButton({
         end
         S.lastTry = os.clock()
 
-        local ok, expire, typeKey = checkKey(keyBox.CurrentValue)
-
-        if not ok then
-            S.fail += 1
-            if S.fail >= 2 then
-                HardKick("Multiple invalid key attempts")
-            end
-            status:Set({Title="Status", Content="INVALID KEY"})
+        if INPUT_KEY == "" then
+            status:Set({
+                Title = "Status",
+                Content = "PLEASE INPUT KEY"
+            })
             return
         end
 
-        -- 🔒 HARD SESSION LOCK
+        local ok, expire, typeKey = checkKey(INPUT_KEY)
+
+        if not ok then
+            S.fail += 1
+            status:Set({
+                Title = "Status",
+                Content = "INVALID KEY"
+            })
+            if S.fail >= 2 then
+                HardKick("Multiple invalid key attempts")
+            end
+            return
+        end
+
+        -- 🔒 SESSION LOCK
         getgenv().__QUERYHUB_SESSION = {
             verified = true,
             userid = lp.UserId,
@@ -181,6 +207,14 @@ Tab:CreateButton({
         })
 
         Rayfield:Destroy()
-        loadstring(game:HttpGet(MAIN_URL))()
+
+        -- SAFE LOAD MAIN
+        local okLoad, err = pcall(function()
+            loadstring(game:HttpGet(MAIN_URL))()
+        end)
+
+        if not okLoad then
+            HardKick("Main loader tampered")
+        end
     end
 })
