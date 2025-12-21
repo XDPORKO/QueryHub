@@ -1,3 +1,8 @@
+--====================================================--
+-- QueryHub Gateway | STABLE EDITION (NO ERROR)
+--====================================================--
+
+--================== GLOBAL DEAD GATE ==================--
 if getgenv().__QUERYHUB_DEAD then
     return
 end
@@ -7,7 +12,14 @@ local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local lp = Players.LocalPlayer
 
---================== HARD KICK (REAL STOP) ==================--
+--================== ICONS ==================--
+local ICON_APP     = 6031071053
+local ICON_KEY     = 6031075924
+local ICON_SUCCESS = 6031094678
+local ICON_ERROR   = 6031075925
+local ICON_INFO    = 6031071054
+
+--================== HARD KICK ==================--
 local function HardKick(reason)
     reason = tostring(reason)
     getgenv().__QUERYHUB_DEAD = true
@@ -20,7 +32,7 @@ local function HardKick(reason)
         while true do task.wait() end
     end)
 
-    return error(reason, 2)
+    error(reason, 0)
 end
 
 --================== EXECUTOR CHECK ==================--
@@ -38,10 +50,10 @@ local ALLOWED_EXECUTORS = {
 }
 
 local function isExecutorAllowed()
-    local exec = getExecutor()
+    local exec = getExecutor():lower()
     for _, v in ipairs(ALLOWED_EXECUTORS) do
-        if exec:lower():find(v:lower()) then
-            return true, exec
+        if exec:find(v:lower(), 1, true) then
+            return true, v
         end
     end
     return false, exec
@@ -49,15 +61,11 @@ end
 
 local okExec, execName = isExecutorAllowed()
 if not okExec then
-    HardKick("Executor not supported : "..execName)
+    HardKick("Executor not supported")
 end
 
 --================== ANTI DOUBLE EXEC ==================--
-if getgenv().__QUERYHUB_LOCK then
-    HardKick("Session already locked")
-end
-
-if getgenv().__QUERYHUB_LOADED then
+if getgenv().__QUERYHUB_LOCK or getgenv().__QUERYHUB_LOADED then
     HardKick("Double execution detected")
 end
 getgenv().__QUERYHUB_LOADED = true
@@ -66,28 +74,34 @@ getgenv().__QUERYHUB_LOADED = true
 local KEY_URL  = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/key.txt"
 local MAIN_URL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/p1.lua"
 
---================== ICONS ==================--
-local ICON_APP     = 6031071053
-local ICON_KEY     = 6031075924
-local ICON_SUCCESS = 6031094678
-
 --================== UI LIB ==================--
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
+--================== SAFE NOTIFY ==================--
+local function Notify(title, content, icon)
+    pcall(function()
+        Rayfield:Notify({
+            Title = title,
+            Content = content,
+            Duration = 3,
+            Image = icon
+        })
+    end)
+end
+
 --================== SESSION ==================--
-getgenv().__QUERYHUB_SESSION = getgenv().__QUERYHUB_SESSION or {
+local SESSION = {
     verified = false,
     lastTry = 0,
     fail = 0
 }
+getgenv().__QUERYHUB_SESSION = SESSION
 
 --================== UTILS ==================--
 local function safeHttp(url)
-    local ok, res = pcall(function()
-        return game:HttpGet(url)
-    end)
+    local ok, res = pcall(game.HttpGet, game, url)
     if not ok or type(res) ~= "string" then
-        HardKick("Network manipulation detected")
+        HardKick("Network blocked")
     end
     return res
 end
@@ -103,9 +117,7 @@ end
 --================== KEY SYSTEM ==================--
 local function getExpire(typeKey, y, m, d)
     local base = os.time({
-        year = tonumber(y),
-        month = tonumber(m),
-        day = tonumber(d),
+        year = y, month = m, day = d,
         hour = 23, min = 59, sec = 59
     })
     if typeKey == "DAILY" then
@@ -119,7 +131,7 @@ end
 
 local function checkKey(input)
     if type(input) ~= "string" or #input < 5 then
-        return false, "INVALID FORMAT"
+        return false
     end
 
     local raw = safeHttp(KEY_URL)
@@ -129,35 +141,34 @@ local function checkKey(input)
         local key, typeKey, exp = line:match("(.+)|(.+)|(.+)")
         if key and hash(key) == inputHash then
             local y,m,d = exp:match("(%d+)%-(%d+)%-(%d+)")
-            if not y then
-                HardKick("Corrupted key data")
+            if not y then return false end
+            if os.time() > getExpire(typeKey, tonumber(y), tonumber(m), tonumber(d)) then
+                HardKick("Expired key")
             end
-            local expire = getExpire(typeKey, y, m, d)
-            if os.time() > expire then
-                HardKick("Expired key usage")
-            end
-            return true, expire, typeKey
+            return true, typeKey
         end
     end
 
-    return false, "INVALID KEY"
+    return false
 end
 
 --================== UI ==================--
 local Window = Rayfield:CreateWindow({
     Name = "QueryHub Gateway",
     LoadingTitle = "QueryHub",
-    LoadingSubtitle = "Secure Verification",
+    LoadingSubtitle = "Verification",
     Icon = ICON_APP,
     ConfigurationSaving = false
 })
 
 local Tab = Window:CreateTab("Key System", ICON_KEY)
 
-local status = Tab:CreateParagraph({
+local Status = Tab:CreateParagraph({
     Title = "Status",
-    Content = "Waiting for key"
+    Content = "Waiting for key..."
 })
+
+Notify("QueryHub", "Executor : "..execName, ICON_INFO)
 
 --================== INPUT ==================--
 local INPUT_KEY = ""
@@ -167,63 +178,52 @@ Tab:CreateInput({
     PlaceholderText = "ENTER YOUR KEY",
     RemoveTextAfterFocusLost = false,
     Callback = function(text)
-        INPUT_KEY = tostring(text)
+        INPUT_KEY = tostring(text or "")
+        Status:Set("Key ready")
     end
 })
 
---================== VERIFY BUTTON ==================--
+--================== VERIFY ==================--
 Tab:CreateButton({
-    Name = "VERIFY KEY",
+    Name = "VERIFY",
     Callback = function()
-        local S = getgenv().__QUERYHUB_SESSION
-
-        if os.clock() - S.lastTry < 2 then
-            HardKick("Spam verification detected")
+        if os.clock() - SESSION.lastTry < 2 then
+            HardKick("Spam detected")
         end
-        S.lastTry = os.clock()
+        SESSION.lastTry = os.clock()
 
         if INPUT_KEY == "" then
-            status:Set("PLEASE INPUT KEY")
+            Status:Set("Key empty")
+            Notify("Error", "Please input key", ICON_ERROR)
             return
         end
 
-        local ok, expire, typeKey = checkKey(INPUT_KEY)
+        Status:Set("Verifying...")
+        local ok, keyType = checkKey(INPUT_KEY)
         if not ok then
-            S.fail = S.fail + 1
-            status:Set("INVALID KEY")
-            if S.fail >= 2 then
-                HardKick("Multiple invalid key attempts")
+            SESSION.fail += 1
+            Status:Set("Invalid key")
+            Notify("Denied", "Invalid key", ICON_ERROR)
+            if SESSION.fail >= 2 then
+                HardKick("Too many failures")
             end
             return
         end
 
-        --================== SESSION LOCK ==================--
-        getgenv().__QUERYHUB_SESSION = {
-            verified = true,
-            userid = lp.UserId,
-            executor = execName,
-            token = HttpService:GenerateGUID(false),
-            issued = os.time()
-        }
+        -- SUCCESS
         getgenv().__QUERYHUB_LOCK = true
+        SESSION.verified = true
 
-        Rayfield:Notify({
-            Title = "Access Granted",
-            Content = "Key Type : "..typeKey,
-            Duration = 3,
-            Image = ICON_SUCCESS
-        })
+        Status:Set("Access granted")
+        Notify("Success", "Key type : "..keyType, ICON_SUCCESS)
 
+        task.wait(0.5)
         Rayfield:Destroy()
 
-        --================== FINAL GATE ==================--
-        local S2 = getgenv().__QUERYHUB_SESSION
-        if not S2 or not S2.verified or S2.userid ~= lp.UserId then
-            HardKick("Session validation failed")
-            return
+        if not SESSION.verified then
+            HardKick("Session error")
         end
 
-        --================== LOAD MAIN (NO PCALL) ==================--
         loadstring(game:HttpGet(MAIN_URL))()
     end
 })
