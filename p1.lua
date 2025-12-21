@@ -1,3 +1,28 @@
+local ahcrot = game:GetService("Players")
+local lozer = ahcrot.LocalPlayer
+
+local LOADER_URL =
+"https://raw.githubusercontent.com/XDPORKO/QueryHub/main/main.lua"
+
+local S = getgenv().__QUERYHUB_SESSION
+
+local function BackToGateway()
+    getgenv().__QUERYHUB_SESSION = nil
+    getgenv().__QUERYHUB_LOCK = nil
+    task.wait(0.15)
+    loadstring(game:HttpGet(LOADER_URL))()
+end
+
+if not S
+or S.verified ~= true
+or S.userid ~= lp.UserId
+or type(S.token) ~= "string"
+or not getgenv().__QUERYHUB_LOCK then
+    lozer:Kick("[ SYSTEM ] Ga Usah Sok Bypass Ngentod")
+    BackToGateway()
+    return
+end
+
 -- SERVICES
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
