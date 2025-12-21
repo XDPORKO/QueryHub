@@ -1,5 +1,5 @@
---// QueryHub Premium Key System (Rayfield Edition)
---// Mobile + PC | Secure Client-Side
+--// QueryHub Premium Key System
+--// Key Type + Anti Tamper (Rayfield)
 
 -- ================== CONFIG ==================
 local KEY_URL  = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/key.txt"
@@ -7,13 +7,37 @@ local MAIN_URL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/p1.lua
 
 -- ================== SERVICES ==================
 local Players = game:GetService("Players")
-local HttpService = game:GetService("HttpService")
 local lp = Players.LocalPlayer
 
--- ================== UI LIB ==================
-local Rayfield = loadstring(game:HttpGet(
-    "https://sirius.menu/rayfield"
-))()
+-- ================== ICONS ==================
+local ICON_APP     = 6031071053
+local ICON_KEY     = 6031075924
+local ICON_SUCCESS = 6031094678
+local ICON_ERROR   = 6031075925
+local ICON_TIME    = 6031075936
+
+-- ================== UI ==================
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+-- ================== ANTI TAMPER ==================
+local __SIGNATURE = "QH_SIG_V1"
+local __CHECKSUM = tostring(#KEY_URL + #MAIN_URL)
+
+local function tamperDetected()
+    pcall(function()
+        lp:Kick("QueryHub | Script modified or corrupted")
+    end)
+    while true do end
+end
+
+if _G.__QH_LOADED or __SIGNATURE ~= "QH_SIG_V1" then
+    tamperDetected()
+end
+_G.__QH_LOADED = true
+
+if tostring(#KEY_URL + #MAIN_URL) ~= __CHECKSUM then
+    tamperDetected()
+end
 
 -- ================== SESSION ==================
 getgenv().__QUERYHUB_SESSION = getgenv().__QUERYHUB_SESSION or {
@@ -37,12 +61,23 @@ end
 local function hash(str)
     local h = 0
     for i = 1, #str do
-        h = (h * 31 + string.byte(str, i)) % 2^31
+        h = (h * 33 + string.byte(str, i)) % 2^31
     end
     return tostring(h)
 end
 
 -- ================== KEY CHECK ==================
+local function getExpire(typeKey, y,m,d)
+    local base = os.time({year=y, month=m, day=d, hour=23, min=59, sec=59})
+    if typeKey == "DAILY" then
+        return base + 86400
+    elseif typeKey == "WEEKLY" then
+        return base + (86400 * 7)
+    elseif typeKey == "LIFETIME" then
+        return base
+    end
+end
+
 local function checkKey(input)
     local raw = safeHttp(KEY_URL)
     if not raw then
@@ -52,19 +87,14 @@ local function checkKey(input)
     local inputHash = hash(input)
 
     for line in raw:gmatch("[^\r\n]+") do
-        local key, exp = line:match("(.+)|(.+)")
-        if key and exp then
-            if hash(key) == inputHash then
-                local y,m,d = exp:match("(%d+)%-(%d+)%-(%d+)")
-                local expire = os.time({
-                    year=y, month=m, day=d,
-                    hour=23, min=59, sec=59
-                })
-                if os.time() > expire then
-                    return false, "KEY EXPIRED"
-                end
-                return true, expire
+        local key, typeKey, exp = line:match("(.+)|(.+)|(.+)")
+        if key and typeKey and exp and hash(key) == inputHash then
+            local y,m,d = exp:match("(%d+)%-(%d+)%-(%d+)")
+            local expire = getExpire(typeKey, y,m,d)
+            if os.time() > expire then
+                return false, "KEY EXPIRED"
             end
+            return true, expire, typeKey
         end
     end
 
@@ -75,29 +105,27 @@ end
 local Window = Rayfield:CreateWindow({
     Name = "QueryHub Premium",
     LoadingTitle = "QueryHub",
-    LoadingSubtitle = "Secure Key System",
-    ConfigurationSaving = false,
-    KeySystem = false
+    LoadingSubtitle = "Secure Verification",
+    Icon = ICON_APP,
+    ConfigurationSaving = false
 })
 
-local Tab = Window:CreateTab("Key", 4483362458)
+local Tab = Window:CreateTab("Key System", ICON_KEY)
 
-local statusLabel = Tab:CreateParagraph({
+local status = Tab:CreateParagraph({
     Title = "Status",
-    Content = "Please enter your key"
+    Content = "Waiting for key"
 })
 
-local countdownLabel = Tab:CreateParagraph({
+local expiry = Tab:CreateParagraph({
     Title = "Expiry",
     Content = "-"
 })
 
-local keyInput
-keyInput = Tab:CreateInput({
-    Name = "Key",
+local keyBox = Tab:CreateInput({
+    Name = "Premium Key",
     PlaceholderText = "ENTER YOUR KEY",
-    RemoveTextAfterFocusLost = false,
-    Callback = function() end
+    RemoveTextAfterFocusLost = false
 })
 
 Tab:CreateButton({
@@ -106,38 +134,36 @@ Tab:CreateButton({
         if os.clock() - getgenv().__QUERYHUB_SESSION.lastTry < 2 then
             Rayfield:Notify({
                 Title = "Wait",
-                Content = "Please slow down",
-                Duration = 2
+                Content = "Slow down",
+                Duration = 2,
+                Image = ICON_TIME
             })
             return
         end
         getgenv().__QUERYHUB_SESSION.lastTry = os.clock()
 
-        statusLabel:Set({
-            Title = "Status",
-            Content = "Checking key..."
-        })
+        status:Set({Title="Status",Content="Checking key..."})
 
-        local ok, expireOrMsg = checkKey(keyInput.CurrentValue)
+        local ok, expire, typeKey = checkKey(keyBox.CurrentValue)
 
         if ok then
             getgenv().__QUERYHUB_SESSION.verified = true
 
             Rayfield:Notify({
-                Title = "Success",
-                Content = "Key verified",
-                Duration = 3
+                Title = "Access Granted",
+                Content = "Key Type : "..typeKey,
+                Duration = 3,
+                Image = ICON_SUCCESS
             })
 
             task.spawn(function()
-                while os.time() < expireOrMsg do
-                    local s = expireOrMsg - os.time()
-                    countdownLabel:Set({
+                while os.time() < expire do
+                    local s = expire - os.time()
+                    expiry:Set({
                         Title = "Expiry",
-                        Content = string.format(
-                            "%02d:%02d:%02d",
-                            s/3600%24,
-                            s/60%60,
+                        Content = string.format("%02d:%02d:%02d",
+                            math.floor(s/3600),
+                            math.floor(s/60)%60,
                             s%60
                         )
                     })
@@ -148,18 +174,14 @@ Tab:CreateButton({
             task.wait(1)
             Rayfield:Destroy()
             loadstring(game:HttpGet(MAIN_URL))()
-
         else
             Rayfield:Notify({
-                Title = "Error",
-                Content = expireOrMsg,
-                Duration = 3
+                Title = "Denied",
+                Content = expire,
+                Duration = 3,
+                Image = ICON_ERROR
             })
-
-            statusLabel:Set({
-                Title = "Status",
-                Content = expireOrMsg
-            })
+            status:Set({Title="Status",Content=expire})
         end
     end
 })
