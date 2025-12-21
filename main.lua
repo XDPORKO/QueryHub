@@ -80,7 +80,7 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false
 })
 
-local Tab = Window:CreateTab("🔐 Key", 4483362458)
+local Tab = Window:CreateTab("Key", 4483362458)
 
 local statusLabel = Tab:CreateParagraph({
     Title = "Status",
