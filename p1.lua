@@ -84,7 +84,7 @@ local Window = Rayfield:CreateWindow({
     MinimizeButton = {
         Image = crot,
         Text = "QueryHUB"
-    }
+    },
     ConfigurationSaving = {
     Enabled = false
     },
