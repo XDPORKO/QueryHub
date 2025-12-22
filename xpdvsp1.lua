@@ -165,7 +165,7 @@ local function Notify(t, d, s, i)
         Title = t,
         Content = d,
         Duration = s or 3,
-        Image = i or 124796029670238
+        Image = 124796029670238
     })
 end
 
