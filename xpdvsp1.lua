@@ -138,13 +138,11 @@ repeat
         task.wait(0.2)
     end
 until Rayfield
-local crot = 90931757626132
 local Window = Rayfield:CreateWindow({
     Name = "Query HUB",
     LoadingTitle = "Universal Script • V1.0",
     LoadingSubtitle = "Develope By Rapp.site.vip",
-    Icon = crot,
-    Theme = "AmberGlow",
+    Icon = 90931757626132,
     ConfigurationSaving = {
     Enabled = false
     },
@@ -163,7 +161,7 @@ local function Notify(t, d, s, i)
         Title = t,
         Content = d,
         Duration = s or 3,
-        Image = i or crot
+        Image = i or 90931757626132
     })
 end
 
