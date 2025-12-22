@@ -167,7 +167,7 @@ getgenv().__MAID:Give(
 -- RAYFIELD UI
 --========================================================--
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
-local crot = 124796029670238
+local crot = 90931757626132
 local Window = Rayfield:CreateWindow({
     Name = "Query HUB",
     LoadingTitle = "Universal Script • V1.0",
@@ -853,103 +853,12 @@ DisableFPSBoost = function()
     table.clear(FPSObjects)
 end
 
---=================== ANTI STAFF & AUTO HOP =====================--
-local function IsAutoStaff(plr)
-    if not State.AntiStaff then return false end
-    if not plr then return false end
-   
-    -- GAME OWNER
-    if game.CreatorType == Enum.CreatorType.User then
-        if plr.UserId == game.CreatorId then
-            return true
-        end
-    end
-
-    -- GROUP STAFF
-    if game.CreatorType == Enum.CreatorType.Group then
-        local ok, rank = pcall(function()
-            return plr:GetRankInGroup(game.CreatorId)
-        end)
-        if ok and rank >= 200 then
-            return true
-        end
-    end
-
-    -- ADMIN TOOLS
-    if plr:FindFirstChild("Backpack") then
-        for _,tool in ipairs(plr.Backpack:GetChildren()) do
-            if tool:IsA("Tool") then
-                local n = tool.Name:lower()
-                if n:find("admin") or n:find("mod") then
-                    return true
-                end
-            end
-        end
-    end
-   
-   local suspiciousNames = {
-    "admin","mod","staff","helper","owner"
-}
-
-for _,k in ipairs(suspiciousNames) do
-    if plr.Name:lower():find(k) then
-        return true
-    end
-end
-
-    -- STAFF GUI
-    local pg = plr:FindFirstChild("PlayerGui")
-    if pg then
-        for _,g in ipairs(pg:GetChildren()) do
-            local n = g.Name:lower()
-            if n:find("admin") or n:find("staff") or n:find("mod") then
-                return true
-            end
-        end
-    end
-
-    return false
-end
-
-
---========================================================--
--- AUTO REJOIN
---========================================================--
-lp.OnTeleport:Connect(function(state)
-    if state == Enum.TeleportState.Failed and State.AutoRejoin then
-        TeleportService:Teleport(game.PlaceId, lp)
-    end
-end)
-
-Players.PlayerRemoving:Connect(function(plr)
- if ESPPlayers[plr] and ESPPlayers[plr].Gui then
-    ESPPlayers[plr].Gui:Destroy()
-end
-ESPPlayers[plr] = nil
-end)
-
-task.spawn(function()
-	while task.wait(30) do
-		if State.AntiAFK then
-			VirtualUser:Button2Down(Vector2.zero, workspace.CurrentCamera.CFrame)
-			task.wait(0.1)
-			VirtualUser:Button2Up(Vector2.zero, workspace.CurrentCamera.CFrame)
-		end
-	end
-end)
-
-lp.OnTeleport:Connect(function(state)
-    if state == Enum.TeleportState.Started then
-        getgenv().__MAID:Clean()
-    end
-end)
-
 --====================================================--
--- ANTI STAFF + AUTO SERVER HOP (UNIFIED V2)
+-- ANTI STAFF + AUTO SERVER HOP (UNIFIED V3)
 --====================================================--
 local hopping = false
 local lastHop = 0
-local HopCooldown = 8
+local HopCooldown = 10
 
 local suspiciousNames = {
     "admin","mod","staff","helper","owner","dev","developer"
@@ -959,7 +868,7 @@ local function IsStaff(plr)
     if not State.AntiEvade then return false end
     if not plr then return false end
 
-    -- OWNER GAME
+    -- GAME OWNER
     if game.CreatorType == Enum.CreatorType.User then
         if plr.UserId == game.CreatorId then
             return true
@@ -1014,10 +923,11 @@ end
 local function AutoHop()
     if hopping then return end
     if tick() - lastHop < HopCooldown then return end
+
     hopping = true
     lastHop = tick()
 
-    Notify("[ SYSTEM ]","STAFF DETECTED - AUTO HOP",2)
+    Notify("[ SYSTEM ]","STAFF DETECTED - AUTO SERVER HOP",2)
 
     local servers = {}
     local cursor = ""
@@ -1055,22 +965,22 @@ local function AutoHop()
         TeleportService:Teleport(game.PlaceId, lp)
     end
 
-    task.delay(HopCooldown,function()
+    task.delay(HopCooldown, function()
         hopping = false
     end)
 end
 
--- JOIN DETECT (INSTANT)
+-- PLAYER JOIN DETECT
 Players.PlayerAdded:Connect(function(p)
     task.wait(0.4)
-    if State.AntiEvade and IsStaff(p) then
+    if IsStaff(p) then
         AutoHop()
     end
 end)
 
--- LOOP SCAN (LOW COST)
+-- PERIODIC SCAN (LOW COST)
 task.spawn(function()
-    while task.wait(5) do
+    while task.wait(6) do
         if not State.AntiEvade then continue end
         for _,p in ipairs(Players:GetPlayers()) do
             if p ~= lp and IsStaff(p) then
@@ -1078,6 +988,37 @@ task.spawn(function()
                 break
             end
         end
+    end
+end)
+--========================================================--
+-- AUTO REJOIN
+--========================================================--
+lp.OnTeleport:Connect(function(state)
+    if state == Enum.TeleportState.Failed and State.AutoRejoin then
+        TeleportService:Teleport(game.PlaceId, lp)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(plr)
+ if ESPPlayers[plr] and ESPPlayers[plr].Gui then
+    ESPPlayers[plr].Gui:Destroy()
+end
+ESPPlayers[plr] = nil
+end)
+
+task.spawn(function()
+	while task.wait(30) do
+		if State.AntiAFK then
+			VirtualUser:Button2Down(Vector2.zero, workspace.CurrentCamera.CFrame)
+			task.wait(0.1)
+			VirtualUser:Button2Up(Vector2.zero, workspace.CurrentCamera.CFrame)
+		end
+	end
+end)
+
+lp.OnTeleport:Connect(function(state)
+    if state == Enum.TeleportState.Started then
+        getgenv().__MAID:Clean()
     end
 end)
 
@@ -1438,3 +1379,4 @@ end
 
 task.wait(3.5)
 Notify("[ SYSTEM ] QueryHub","Succesfully Load Scripts..",4)
+
