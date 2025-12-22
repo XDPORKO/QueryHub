@@ -1,190 +1,186 @@
-------------------------
--- SERVICES
-------------------------
+
+----------------------------------------------------------------
+-- [ QUERYHUB GATEWAY MODERN v2.0 ]
+-- Author: XDPORKO
+----------------------------------------------------------------
+
 local Players = game:GetService("Players")
 local HttpService = game:GetService("HttpService")
 local lp = Players.LocalPlayer
 
 ------------------------
--- HARD SECURITY
-------------------------
-local function HardKick(reason)
-    task.spawn(function()
-        pcall(function()
-            lp:Kick("\n[ QUERYHUB SECURITY ]\n" .. tostring(reason))
-        end)
-        task.wait(0.5)
-        while true do end -- Freeze thread
-    end)
-end
-
-------------------------
--- EXECUTOR CHECK
-------------------------
-local function getExecutor()
-    return (identifyexecutor and identifyexecutor() or "Unknown")
-end
-
-local ALLOWED_EXECUTORS = {
-    "synapse", "fluxus", "arceus", "hydrogen", 
-    "delta", "codex", "trigon", "wave", "electron"
-}
-
-local function checkExecutor()
-    local exec = getExecutor():lower()
-    for _, v in ipairs(ALLOWED_EXECUTORS) do
-        if exec:find(v, 1, true) then return true end
-    end
-    -- Jika di PC pakai Studio atau executor lain yang tak terdaftar, tetap izinkan untuk dev? 
-    -- Jika ingin ketat, biarkan return false.
-    return true 
-end
-
-------------------------
--- ANTI DOUBLE LOAD
-------------------------
-if getgenv().__QUERYHUB_LOADED then
-    warn("[QueryHub] Already running!")
-    return
-end
--- Jangan set LOADED di sini jika ini hanya gateway, set di main script saja.
--- getgenv().__QUERYHUB_LOADED = true 
-
-------------------------
--- CONFIG
+-- CONFIGURATION
 ------------------------
 local CONFIG = {
-    KEY_URL  = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/key.txt",
-    MAIN_URL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/xpdvsp1.lua",
-    ICON_ID  = 124796029670238,
-    THEME    = "Amethyst"
+    Name = "QueryHub Gateway • Premium",
+    KeyURL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/key.txt",
+    MainURL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/xpdvsp1.lua",
+    Discord = "https://discord.gg/queryhub", -- Ganti link discordmu
+    Icon = 124796029670238,
+    Theme = "Amethyst" -- "Default", "Amber", "Amethyst", "Bloom", "DarkBlue", "Green", "Ocean", "Serenity"
 }
 
 ------------------------
--- UI LIB LOAD
-------------------------
-local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
-
-------------------------
--- UTILS
+-- UTILITIES
 ------------------------
 local function safeHttp(url)
-    local ok, res = pcall(function()
-        return game:HttpGet(url)
-    end)
+    local ok, res = pcall(function() return game:HttpGet(url) end)
     return ok and res or nil
 end
 
-local function hash(str)
-    local h = 5381
-    for i = 1, #str do
-        h = bit32.band(h * 33 + str:byte(i), 0xFFFFFFFF)
+local function copyDiscord()
+    if setclipboard then
+        setclipboard(CONFIG.Discord)
+        return true
     end
-    return tostring(h)
+    return false
+end
+
+local function checkExpiry(dateStr)
+    local y, m, d = dateStr:match("(%d+)-(%d+)-(%d+)")
+    if not y then return true end
+    local expireTime = os.time({year = y, month = m, day = d, hour = 23, min = 59})
+    return os.time() > expireTime
 end
 
 ------------------------
--- KEY VERIFY
+-- CORE AUTH ENGINE
 ------------------------
-local function verifyKey(input)
-    if not input or #input < 3 then return false, "KEY TOO SHORT" end
-    local raw = safeHttp(CONFIG.KEY_URL)
-    if not raw then return false, "SERVER CONNECTION FAILED" end
+local function validate(input)
+    if not input or #input < 3 then return false, "Key too short!" end
+    
+    local raw = safeHttp(CONFIG.KeyURL)
+    if not raw then return false, "Server connection failed!" end
 
-    local userHash = hash(input:gsub("%s+", ""))
+    local userKey = input:gsub("%s+", "")
+    
     for line in raw:gmatch("[^\r\n]+") do
-        local k, tier = line:match("^([^|]+)|([^|]+)")
-        if k and hash(k) == userHash then
-            return true, tier
+        local k, tier, exp = line:match("^([^|]+)|([^|]+)|([^|]+)")
+        if k and k == userKey then
+            if checkExpiry(exp) then return false, "Key Expired: " .. exp end
+            return true, {tier = tier, exp = exp}
         end
     end
-    return false, "INVALID KEY"
+    return false, "Invalid License Key!"
 end
 
 ------------------------
--- WINDOW CREATION
+-- UI INITIALIZATION
 ------------------------
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
 local Window = Rayfield:CreateWindow({
-    Name = "QueryHub Gateway • v2.0",
-    LoadingTitle = "Initializing QueryHub",
+    Name = CONFIG.Name,
+    LoadingTitle = "QUERYHUB ECOSYSTEM",
     LoadingSubtitle = "by XDPORKO",
-    Icon = ICON_ID,
     ConfigurationSaving = { Enabled = false },
-    Theme = CONFIG.THEME,
+    Theme = CONFIG.Theme,
+    DisableRayfieldPrompts = false,
+    DisableBuildWarnings = true,
 })
 
-local TabAccess = Window:CreateTab("Authentication", "lock")
-local TabInfo = Window:CreateTab("System Info", "info")
+-- Tabs
+local TabAuth = Window:CreateTab("Verification", "fingerprint")
+local TabExtra = Window:CreateTab("Community", "users")
+local TabSystem = Window:CreateTab("Debug", "terminal")
 
 ------------------------
--- ACCESS TAB
+-- VERIFICATION TAB
 ------------------------
-TabAccess:CreateSection("🔐 Secure Access")
+TabAuth:CreateSection("🛡️ Secure Authentication")
 
-local StatusPara = TabAccess:CreateParagraph({
-    Title = "SYSTEM STATUS",
-    Content = "Waiting for user input..."
+local StatusLabel = TabAuth:CreateParagraph({
+    Title = "Ready to Verify",
+    Content = "Please enter your license key to access the main script."
 })
 
-local ProgressBar = TabAccess:CreateSlider({
-    Name = "Validation Progress",
-    Range = {0, 100},
-    Increment = 1,
-    CurrentValue = 0,
-    Callback = function() end
-})
+local InputKey = ""
+local Loading = false
 
-local INPUT_KEY = ""
-local isProcessing = false
-
-TabAccess:CreateInput({
-    Name = "Enter License Key",
-    PlaceholderText = "Paste key here...",
+TabAuth:CreateInput({
+    Name = "License Key",
+    PlaceholderText = "QH-XXXX-XXXX-XXXX",
     RemoveTextAfterFocusLost = false,
-    Callback = function(text)
-        INPUT_KEY = text
-    end
+    Callback = function(text) InputKey = text end
 })
 
--- DI GATEWAY (Script Key)
-TabAccess:CreateButton({
-    Name = "Verify & Access",
+TabAuth:CreateButton({
+    Name = "Unlock QueryHub",
     Callback = function()
-        if isProcessing then return end
-        isProcessing = true
+        if Loading then return end
+        Loading = true
         
-        local success, result = verifyKey(INPUT_KEY)
+        StatusLabel:Set({Title = "⏳ Verifying...", Content = "Communicating with GitHub database..."})
+
+        local success, data = validate(InputKey)
+
+        task.wait(1) -- Biar ada efek loading sedikit (keren)
 
         if success then
-            -- 1. BUAT SESSION DULU (Wajib di atas loadstring)
+            StatusLabel:Set({Title = "✅ Access Granted!", Content = "Welcome back! Loading environment..."})
+            
+            -- Setup Session
             getgenv().__QUERYHUB_SESSION = {
                 verified = true,
-                userid = game:GetService("Players").LocalPlayer.UserId,
-                tier = result
+                userid = lp.UserId,
+                tier = data.tier,
+                expiry = data.exp
             }
 
-            -- 2. NOTIFIKASI
-            Rayfield:Notify({Title = "Success", Content = "Session Created. Loading Main Script..."})
-            
-            -- 3. LOAD MAIN SCRIPT
-            local main_script = safeHttp(CONFIG.MAIN_URL)
-            if main_script then
-                task.wait(0.5) -- Jeda sebentar agar environment stabil
+            Rayfield:Notify({
+                Title = "Success!",
+                Content = "Tier: " .. data.tier .. " | Expires: " .. data.exp,
+                Duration = 4,
+                Image = 4483345998,
+            })
+
+            local main = safeHttp(CONFIG.MainURL)
+            if main then
+                task.wait(1)
                 Rayfield:Destroy()
-                loadstring(main_script)()
+                loadstring(main)()
             else
-                lp:Kick("Failed to fetch Main Script.")
+                Loading = false
+                StatusLabel:Set({Title = "❌ Error", Content = "Failed to fetch Main Script."})
             end
         else
-            isProcessing = false
-            StatusPara:Set({Title = "ERROR", Content = result})
+            Loading = false
+            StatusLabel:Set({Title = "❌ Rejected", Content = data})
+            Rayfield:Notify({Title = "Authentication Failed", Content = data, Duration = 5})
         end
     end
 })
 
 ------------------------
--- INFO TAB
+-- COMMUNITY TAB
 ------------------------
-TabInfo:CreateSection("User Data")
-TabInfo:CreateParagraph({Title = "Player", Content = lp.Name .. " (" .. lp.UserId .. ")"})
-TabInfo:CreateParagraph({Title = "Executor", Content = getExecutor()})
+TabExtra:CreateSection("Links")
+
+TabExtra:CreateButton({
+    Name = "Copy Discord Invite",
+    Callback = function()
+        if copyDiscord() then
+            Rayfield:Notify({Title = "Copied!", Content = "Discord link copied to clipboard.", Duration = 3})
+        else
+            StatusLabel:Set({Title = "Discord Link", Content = CONFIG.Discord})
+        end
+    end
+})
+
+TabExtra:CreateParagraph({
+    Title = "Need a Key?",
+    Content = "Visit our Discord to get a free weekly key or purchase a Lifetime license."
+})
+
+------------------------
+-- SYSTEM TAB
+------------------------
+TabSystem:CreateSection("Machine Info")
+TabSystem:CreateParagraph({Title = "Account", Content = "User: " .. lp.Name .. "\nID: " .. lp.UserId})
+TabSystem:CreateParagraph({Title = "Hardware", Content = "Executor: " .. (identifyexecutor and identifyexecutor() or "Generic")})
+
+Rayfield:Notify({
+    Title = "System Loaded",
+    Content = "Welcome, " .. lp.DisplayName,
+    Duration = 3
+})
