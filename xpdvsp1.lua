@@ -127,17 +127,31 @@ end
 --========================================================--
 -- RAYFIELD UI
 --========================================================--
-local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+local Rayfield
+do
+    local ok, res = pcall(function()
+        return loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+    end)
+
+    if not ok or type(res) ~= "table" then
+        warn("Rayfield failed to load")
+        return
+    end
+
+    Rayfield = res
+end
+
 local Window = Rayfield:CreateWindow({
     Name = "Query HUB",
     LoadingTitle = "Universal Script • V1.0",
     LoadingSubtitle = "Develope By Rapp.site.vip",
     Icon = 90931757626132,
+    Padding = 10, 
     ConfigurationSaving = {
-    Enabled = false
+        Enabled = false
     },
     Discord = {
-    Enabled = false
+        Enabled = false
     },
     KeySystem = false
 })
