@@ -145,51 +145,37 @@ TabAccess:CreateInput({
     end
 })
 
+-- DI GATEWAY (Script Key)
 TabAccess:CreateButton({
     Name = "Verify & Access",
     Callback = function()
         if isProcessing then return end
         isProcessing = true
         
-        StatusPara:Set({Title = "STATUS", Content = "Verifying..."})
-
-        task.spawn(function()
-            for i = 1, 100, 10 do
-                ProgressBar:Set(i)
-                task.wait(0.05)
-            end
-        end)
-
         local success, result = verifyKey(INPUT_KEY)
 
         if success then
-            --========================================================--
-            -- INI BAGIAN PENTING UNTUK SYNC DENGAN MAIN SCRIPT
-            --========================================================--
+            -- 1. BUAT SESSION DULU (Wajib di atas loadstring)
             getgenv().__QUERYHUB_SESSION = {
                 verified = true,
-                userid = lp.UserId,
-                tier = result,
-                executor = getExecutor()
+                userid = game:GetService("Players").LocalPlayer.UserId,
+                tier = result
             }
-            --========================================================--
 
-            ProgressBar:Set(100)
-            StatusPara:Set({Title = "SUCCESS", Content = "Access Granted! Loading..."})
+            -- 2. NOTIFIKASI
+            Rayfield:Notify({Title = "Success", Content = "Session Created. Loading Main Script..."})
             
-            task.wait(1)
-            Rayfield:Destroy()
-
-            -- Memuat Script Utama
+            -- 3. LOAD MAIN SCRIPT
             local main_script = safeHttp(CONFIG.MAIN_URL)
             if main_script then
+                task.wait(0.5) -- Jeda sebentar agar environment stabil
+                Rayfield:Destroy()
                 loadstring(main_script)()
             else
-                lp:Kick("Critical Error: Main Script unreachable.")
+                lp:Kick("Failed to fetch Main Script.")
             end
         else
             isProcessing = false
-            ProgressBar:Set(0)
             StatusPara:Set({Title = "ERROR", Content = result})
         end
     end
