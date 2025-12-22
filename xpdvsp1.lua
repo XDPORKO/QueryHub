@@ -127,14 +127,24 @@ end
 --========================================================--
 -- RAYFIELD UI
 --========================================================--
-local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+local Rayfield
+repeat
+    local ok, lib = pcall(function()
+        return loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+    end)
+    if ok and type(lib) == "table" and lib.CreateWindow then
+        Rayfield = lib
+    else
+        task.wait(0.2)
+    end
+until Rayfield
 local crot = 90931757626132
 local Window = Rayfield:CreateWindow({
     Name = "Query HUB",
     LoadingTitle = "Universal Script • V1.0",
     LoadingSubtitle = "Develope By Rapp.site.vip",
     Icon = crot,
-    Theme = "Light",
+    Theme = "AmberGlow",
     ConfigurationSaving = {
     Enabled = false
     },
@@ -143,6 +153,10 @@ local Window = Rayfield:CreateWindow({
     },
     KeySystem = false
 })
+task.wait(0.35)
+local MainTab = Window:CreateTab("Main", 6031071053)
+local TrollTab  = Window:CreateTab("Troll", 6031075929)
+local SystemTab = Window:CreateTab("Server", 6031075928)
 
 local function Notify(t, d, s, i)
     Rayfield:Notify({
@@ -156,9 +170,6 @@ end
 --========================================================--
 -- TABS
 --========================================================--
-local MainTab = Window:CreateTab("Main", 6031071053)
-local TrollTab  = Window:CreateTab("Troll", 6031075929)
-local SystemTab = Window:CreateTab("Server", 6031075928)
 
 --====================== WALK SPEED + JUMP POWER ===================--
 RunService.Heartbeat:Connect(function()
@@ -282,23 +293,23 @@ end)
 if not getgenv().__ANTIKICK then
     getgenv().__ANTIKICK = true
 
-    if getrawmetatable and newcclosure then
+    if getrawmetatable and newcclosure and getnamecallmethod then
     local mt = getrawmetatable(game)
     local old = mt.__namecall
-    setreadonly(mt,false)
-
- mt.__namecall = newcclosure(function(self,...)
-    local method = getnamecallmethod and getnamecallmethod()
-    if self == lp
-    and getgenv().ED_AntiKick.Enabled
-    and method
-    and method:lower() == "kick" then
-        return task.wait(9e9)
+    if old then
+        setreadonly(mt,false)
+        mt.__namecall = newcclosure(function(self,...)
+            local method = getnamecallmethod()
+            if self == lp
+            and getgenv().ED_AntiKick.Enabled
+            and method
+            and method:lower() == "kick" then
+                return task.wait(9e9)
+            end
+            return old(self,...)
+        end)
+        setreadonly(mt,true)
     end
-    return old(self,...)
-end)
-
-    setreadonly(mt,true)
 end
 --========================================================--
 -- SMART ANTI VOID (UPGRADED)
@@ -331,10 +342,10 @@ local function RealFling(targetHRP)
     if not myHRP or not targetHRP then return end
 
     -- paksa ownership (executor wajib support)
- pcall(function()
-    sethiddenproperty(nearest, "NetworkOwnershipRule", Enum.NetworkOwnership.Manual)
-    sethiddenproperty(nearest, "NetworkOwner", lp)
-end)
+    pcall(function()
+    sethiddenproperty(myHRP, "NetworkOwnershipRule", Enum.NetworkOwnership.Manual)
+    sethiddenproperty(myHRP, "NetworkOwner", lp)
+    end)
 
     local bv = Instance.new("BodyVelocity")
     bv.MaxForce = Vector3.new(9e9,9e9,9e9)
