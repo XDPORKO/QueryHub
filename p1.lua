@@ -25,6 +25,8 @@ local VirtualUser = game:GetService("VirtualUser")
 local lp = Players.LocalPlayer
 local cam = workspace.CurrentCamera
 local ESPPlayers = {}
+local EnableFPSBoost
+local DisableFPSBoost
 
 -- GLOBAL FLAGS
 getgenv().AntiVoidHandle = true
@@ -57,7 +59,9 @@ local State = {
     Jumpy = false,
     Noclip = false,
     Fly = false,
-    FlySpeed = 80
+    FlySpeed = 80,
+    AntiStaff = false,
+    AutoHop = false
 }
 
 --========================================================--
@@ -87,6 +91,13 @@ local function LoadState()
 end
 LoadState()
 
+if State.FPSBoost then
+    task.spawn(function()
+        task.wait(0.5)
+        EnableFPSBoost()
+    end)
+end
+
 local function GetHRP(char)
     return char and char:FindFirstChild("HumanoidRootPart")
 end
@@ -106,7 +117,7 @@ local Window = Rayfield:CreateWindow({
     LoadingTitle = "Universal Script • V1.0",
     LoadingSubtitle = "Develope By Rapp.site.vip",
     Icon = crot,
-    Theme = "Ocean",
+    Theme = "Light",
     ConfigurationSaving = {
     Enabled = false
     },
@@ -131,345 +142,6 @@ end
 local MainTab = Window:CreateTab("Main", 6031071053)
 local TrollTab  = Window:CreateTab("Troll", 6031075929)
 local SystemTab = Window:CreateTab("Server", 6031075928)
-
---========================================================--
--- Main
---========================================================--
-MainTab:CreateToggle({
-    Name = "Fly",
-    CurrentValue = State.Fly,
-    Callback = function(v)
-        State.Fly = v
-        SaveState()
-        Notify("Main","Fly "..(v and "ON" or "OFF"))
-    end
-})
-
-MainTab:CreateSlider({
-    Name = "Fly Speed",
-    Range = {30, 200},
-    Increment = 5,
-    CurrentValue = State.FlySpeed,
-    Callback = function(v)
-        State.FlySpeed = v
-        SaveState()
-    end
-})
-
-MainTab:CreateToggle({
-    Name = "Enable Speed",
-    CurrentValue = State.Speedy,
-    Callback = function(v)
-        State.Speedy = v
-        SaveState()
-        Notify("Main","Speed "..(v and "ON" or "OFF"))
-    end
-})
-
-MainTab:CreateSlider({
-    Name = "Walk Speed",
-    Range = {16, 120},
-    Increment = 1,
-    CurrentValue = State.Speed,
-    Callback = function(v)
-        State.Speed = v
-        SaveState()
-        Notify("Main","Speed set to "..v)
-    end
-})
-
-MainTab:CreateToggle({
-    Name = "Enable Jump",
-    CurrentValue = State.Jumpy,
-    Callback = function(v)
-        State.Jumpy = v
-        SaveState()
-        Notify("Main","Jump "..(v and "ON" or "OFF"))
-    end
-})
-
-MainTab:CreateSlider({
-    Name = "Jump Power",
-    Range = {50, 200},
-    Increment = 5,
-    CurrentValue = State.Jump,
-    Callback = function(v)
-        State.Jump = v
-        SaveState()
-        Notify("Main","JumpPower set to "..v)
-    end
-})
-
-MainTab:CreateToggle({
-    Name = "Walk On Water",
-    CurrentValue = State.WalkOnWater,
-    Callback = function(v)
-        State.WalkOnWater = v
-        SaveState()
-        Notify("Main","Walk On Water "..(v and "ON" or "OFF"))
-    end
-})
-
-MainTab:CreateToggle({
-    Name = "God Mode",
-    CurrentValue = State.GodMode,
-    Callback = function(v)
-        State.GodMode = v
-        SaveState()
-        Notify("Main","God Mode "..(v and "ON" or "OFF"))
-    end
-})
-
-MainTab:CreateToggle({
-    Name = "Noclip",
-    CurrentValue = State.Noclip,
-    Callback = function(v)
-        State.Noclip = v
-        SaveState()
-        Notify("Main","Noclip "..(v and "ON" or "OFF"))
-    end
-})
-
---========================================================--
--- INVISIBLE CORE V3 (PERSISTENT + SAFE)
---========================================================--
-local InvisCache = {}
-
-local function CacheChar(char)
-    InvisCache = {}
-    for _,v in ipairs(char:GetDescendants()) do
-        if v:IsA("BasePart") then
-            InvisCache[v] = {
-                LTM = v.LocalTransparencyModifier,
-                Shadow = v.CastShadow
-            }
-        elseif v:IsA("Decal") then
-            InvisCache[v] = {
-                Transparency = v.Transparency
-            }
-        end
-    end
-end
-
-local function ApplyInvisible(char)
-    CacheChar(char)
-
-    for _,v in ipairs(char:GetDescendants()) do
-        if v:IsA("BasePart") then
-            v.LocalTransparencyModifier = 1
-            v.CastShadow = false
-        elseif v:IsA("Decal") then
-            v.Transparency = 1
-        end
-    end
-
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.NameDisplayDistance = 0
-        hum.HealthDisplayDistance = 0
-    end
-end
-
-local function RemoveInvisible()
-    for obj,data in pairs(InvisCache) do
-        if obj and obj.Parent then
-            if obj:IsA("BasePart") then
-                obj.LocalTransparencyModifier = data.LTM or 0
-                obj.CastShadow = data.Shadow ~= false
-            elseif obj:IsA("Decal") then
-                obj.Transparency = data.Transparency or 0
-            end
-        end
-    end
-    table.clear(InvisCache)
-end
-
-lp.CharacterAdded:Connect(function(char)
-    char:WaitForChild("HumanoidRootPart", 5)
-
-    if State.Invisible then
-        task.wait(0.15)
-        ApplyInvisible(char)
-    end
-end)
-
-MainTab:CreateToggle({
-    Name = "Invisible (Persistent)",
-    CurrentValue = State.Invisible,
-    Callback = function(v)
-        State.Invisible = v
-        SaveState()
-
-        local char = lp.Character
-        if not char then return end
-
-        if v then
-            ApplyInvisible(char)
-            Notify("Main","Invisible ON")
-        else
-            RemoveInvisible()
-            Notify("Main","Invisible OFF")
-        end
-    end
-})
-
-MainTab:CreateToggle({
-    Name = "ESP",
-    CurrentValue = State.ESP,
-    Callback = function(v)
-        State.ESP = v
-        SaveState()
-        Notify("Main","ESP "..(v and "ON" or "OFF"))
-    end
-})
-
---========================================================--
--- SYSTEM
---========================================================--
-SystemTab:CreateToggle({
-    Name = "Anti Void",
-    CurrentValue = State.AntiVoid,
-    Callback = function(v)
-        State.AntiVoid = v
-        getgenv().AntiVoidHandle = v
-        SaveState()
-        Notify("System","Anti Void "..(v and "ON" or "OFF"))
-    end
-})
-
-SystemTab:CreateToggle({
-    Name = "Anti Kick",
-    CurrentValue = getgenv().ED_AntiKick.Enabled,
-    Callback = function(v)
-        getgenv().ED_AntiKick.Enabled = v
-        SaveState()
-        Notify("System","Anti Kick "..(v and "ON" or "OFF"))
-    end
-})
-
-SystemTab:CreateToggle({
-    Name = "Anti AFK",
-    CurrentValue = State.AntiAFK,
-    Callback = function(v)
-        State.AntiAFK = v
-        SaveState()
-        Notify("System","Anti AFK "..(v and "ON" or "OFF"))
-    end
-})
-
-SystemTab:CreateToggle({
-    Name = "Auto Rejoin",
-    CurrentValue = State.AutoRejoin,
-    Callback = function(v)
-        State.AutoRejoin = v
-        SaveState()
-        Notify("System","Auto Rejoin "..(v and "ON" or "OFF"))
-    end
-})
-
-SystemTab:CreateToggle({
-    Name = "FPS Booster",
-    CurrentValue = State.FPSBoost,
-    Callback = function(v)
-        State.FPSBoost = v
-        SaveState()
-
-        if v then
-            EnableFPSBoost()
-            Notify("System","FPS Booster Enabled",2)
-        else
-            DisableFPSBoost()
-            Notify("System","FPS Booster Disabled",2)
-        end
-    end
-})
-
---========================================================--
--- TROLL
---========================================================--
-TrollTab:CreateToggle({
-    Name = "Auto Fling",
-    CurrentValue = State.AutoFling,
-    Callback = function(v)
-        State.AutoFling = v
-        SaveState()
-        Notify("Troll","Auto Fling "..(v and "ON" or "OFF"))
-    end
-})
-
-TrollTab:CreateDropdown({
-    Name = "Fling Mode",
-    Options = {"Normal","Orbit","Tornado"},
-    CurrentOption = {State.FlingMode},
-    Callback = function(v)
-        State.FlingMode = v[1]
-        SaveState()
-        Notify("Troll", "Fling Mode "..State.FlingMode)
-    end
-})
-
-TrollTab:CreateSlider({
-    Name = "Power",
-    Range = {200,2000},
-    Increment = 50,
-    CurrentValue = State.Power,
-    Callback = function(v)
-        State.Power = v
-        SaveState()
-        Notify("Troll", "Power set to "..v)
-    end
-})
-
-TrollTab:CreateToggle({
-    Name = "Counter Fling",
-    CurrentValue = State.CounterFling,
-    Callback = function(v)
-        State.CounterFling = v
-        SaveState()
-        Notify("Troll","Counter Fling "..(v and "ON" or "OFF"))
-    end
-})
-
-TrollTab:CreateToggle({
-    Name = "Bring All",
-    CurrentValue = State.BringLoop,
-    Callback = function(v)
-        State.BringLoop = v
-        SaveState()
-        Notify("Troll","Bring All "..(v and "ON" or "OFF"))
-    end
-})
-
-TrollTab:CreateButton({
-    Name = "Bring Nearest",
-    Callback = function()
-        local myChar = lp.Character
-        local myHRP = GetHRP(myChar)
-        if not myHRP then
-    continue
-end
-
-        local nearest, dist = nil, math.huge
-
-        for _,p in ipairs(Players:GetPlayers()) do
-            if p ~= lp and p.Character and IsAlive(p.Character) then
-                local hrp = GetHRP(p.Character)
-                if hrp then
-                    local d = (hrp.Position - myHRP.Position).Magnitude
-                    if d < dist then
-                        dist = d
-                        nearest = hrp
-                    end
-                end
-            end
-        end
-
-        if nearest then
-            nearest.CFrame = myHRP.CFrame * CFrame.new(0,0,-4)
-            Notify("Troll","Nearest player brought",2)
-        end
-    end
-})
 
 --====================== WALK SPEED + JUMP POWER ===================--
 RunService.Heartbeat:Connect(function()
@@ -599,7 +271,7 @@ end)
 --========================================================--
 if not getgenv().__ANTIKICK then
     getgenv().__ANTIKICK = true
-
+   
     local oldNamecall
     oldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(self, ...)
         local method = getnamecallmethod()
@@ -614,13 +286,13 @@ if not getgenv().__ANTIKICK then
         end
         return oldNamecall(self, ...)
     end))
-
+    
     local oldError
     oldError = hookfunction(error, function(...)
-        if getgenv().ED_AntiKick.Enabled then
-            return
-        end
-        return oldError(...)
+    if getgenv().ED_AntiKick.Enabled and getgenv().ED_AntiKick.CheckCaller and checkcaller() then
+        return
+      end
+     return oldError(...)
     end)
 end
 --========================================================--
@@ -776,7 +448,7 @@ RunService.Heartbeat:Connect(function()
 
     local myHRP = GetHRP(lp.Character)
     if not myHRP then
-    continue
+    return
 end
 
     for _,p in ipairs(Players:GetPlayers()) do
@@ -802,6 +474,7 @@ local lastSafeCF_Fling
 local antiFlingBV
 
 RunService.Heartbeat:Connect(function()
+    if State.Fly then return end
     if not State.CounterFling then return end
 
     local char = lp.Character
@@ -849,9 +522,9 @@ task.spawn(function()
         if not State.BringLoop then continue end
 
         local myHRP = GetHRP(lp.Character)
-        if not myHRP then
-    continue
-end
+         if not myHRP then
+            continue 
+        end
 
         for _,p in ipairs(Players:GetPlayers()) do
             if p ~= lp and p.Character and IsAlive(p.Character) then
@@ -1042,16 +715,17 @@ local function CreateESP(player)
 end
 
 RunService.RenderStepped:Connect(function()
+if not State.ESP then return end
+    local myChar = lp.Character
+    local myHRP = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myHRP then return end
+
     for _,plr in ipairs(Players:GetPlayers()) do
         if plr ~= lp then
             local char = plr.Character
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
             local hum = char and char:FindFirstChildOfClass("Humanoid")
-            local myHRP = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-            if not myHRP then continue end
-            if State.ESP and hrp and hum.Health > 0 then
-            local dist = math.floor((hrp.Position - myHRP.Position).Magnitude)
-    
+
             if State.ESP and hrp and hum and hum.Health > 0 then
                 if not ESPPlayers[plr] then
                     local gui, text = CreateESP(plr)
@@ -1059,11 +733,11 @@ RunService.RenderStepped:Connect(function()
                     ESPPlayers[plr] = {Gui = gui, Text = text}
                 end
 
-                local data = ESPPlayers[plr]
+                local dist = math.floor((hrp.Position - myHRP.Position).Magnitude)
                 local max = hum.MaxHealth > 0 and hum.MaxHealth or 100
-                local hp = math.clamp(math.floor((hum.Health / max) * 100), 0, 100)
-                
-                data.Text.Text = string.format(
+                local hp = math.floor((hum.Health / max) * 100)
+
+                ESPPlayers[plr].Text.Text = string.format(
                     "<b>%s</b>\nNickname: %s\nHP: %d%% | Dist: %dm",
                     plr.Name,
                     plr.DisplayName,
@@ -1079,15 +753,14 @@ RunService.RenderStepped:Connect(function()
         end
     end
 end)
-
 --========================================================--
 -- FPS BOOST V2 (OPTIMIZED)
 --========================================================--
 local Lighting = game:GetService("Lighting")
-local FPSCache = { Enabled = false }
+local FPSCache = {}
 local FPSObjects = {}
 
-local function EnableFPSBoost()
+EnableFPSBoost = function()
     table.clear(FPSObjects)
     if FPSCache.Enabled then return end
     FPSCache.Enabled = true
@@ -1126,7 +799,7 @@ local function EnableFPSBoost()
     end
 end
 
-local function DisableFPSBoost()
+DisableFPSBoost = function()
     if not FPSCache.Enabled then return end
     FPSCache.Enabled = false
 
@@ -1148,6 +821,133 @@ end
     end
     table.clear(FPSObjects)
 end
+
+--=================== ANTI STAFF & AUTO HOP =====================--
+local function IsAutoStaff(plr)
+    if not State.AntiStaff then return false end
+    if not plr then return false end
+
+    -- GAME OWNER
+    if game.CreatorType == Enum.CreatorType.User then
+        if plr.UserId == game.CreatorId then
+            return true
+        end
+    end
+
+    -- GROUP STAFF
+    if game.CreatorType == Enum.CreatorType.Group then
+        local ok, rank = pcall(function()
+            return plr:GetRankInGroup(game.CreatorId)
+        end)
+        if ok and rank >= 200 then
+            return true
+        end
+    end
+
+    -- ADMIN TOOLS
+    if plr:FindFirstChild("Backpack") then
+        for _,tool in ipairs(plr.Backpack:GetChildren()) do
+            if tool:IsA("Tool") then
+                local n = tool.Name:lower()
+                if n:find("admin") or n:find("mod") then
+                    return true
+                end
+            end
+        end
+    end
+
+    -- STAFF GUI
+    local pg = plr:FindFirstChild("PlayerGui")
+    if pg then
+        for _,g in ipairs(pg:GetChildren()) do
+            local n = g.Name:lower()
+            if n:find("admin") or n:find("staff") or n:find("mod") then
+                return true
+            end
+        end
+    end
+
+    return false
+end
+
+local hopping = false
+
+local function AutoHop()
+    if not State.AutoHop then return end
+    if hopping then return end
+    hopping = true
+
+    Notify("[ SYSTEM ]","⚠️ STAFF DETECTED\nAUTO HOP SERVER",2)
+
+    local cursor = ""
+    local servers = {}
+    
+    repeat
+        local url =
+            "https://games.roblox.com/v1/games/" ..
+            game.PlaceId ..
+            "/servers/Public?sortOrder=Asc&limit=100" ..
+            (cursor ~= "" and "&cursor="..cursor or "")
+
+        local ok,res = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet(url))
+        end)
+
+        if ok and res and res.data then
+            for _,s in ipairs(res.data) do
+                if s.playing < s.maxPlayers then
+                    table.insert(servers, s.id)
+                end
+            end
+            cursor = res.nextPageCursor or ""
+        else
+            break
+        end
+    until cursor == "" or #servers > 0
+
+    task.wait(1)
+
+    if #servers > 0 then
+        TeleportService:TeleportToPlaceInstance(
+            game.PlaceId,
+            servers[math.random(#servers)],
+            lp
+        )
+    else
+        TeleportService:Teleport(game.PlaceId, lp)
+    end
+    task.delay(10, function()
+    hopping = false
+   end)
+end
+
+local function CheckStaff()
+    if not State.AntiStaff then return end
+
+    for _,p in ipairs(Players:GetPlayers()) do
+        if p ~= lp and IsAutoStaff(p) then
+            Notify("[ SYSTEM ] WARNING","Staff Detected: "..p.Name,2)
+            AutoHop()
+            return
+        end
+    end
+end
+
+-- JOIN DETECT
+Players.PlayerAdded:Connect(function(p)
+    task.wait(0.5)
+    if State.AntiStaff and IsAutoStaff(p) then
+        Notify("[ SYSTEM ] WARNING","Staff Joined: "..p.Name,2)
+        AutoHop()
+    end
+end)
+
+-- LOOP SCAN
+task.spawn(function()
+    while task.wait(6) do
+        CheckStaff()
+    end
+end)
 --========================================================--
 -- AUTO REJOIN
 --========================================================--
@@ -1158,10 +958,10 @@ lp.OnTeleport:Connect(function(state)
 end)
 
 Players.PlayerRemoving:Connect(function(plr)
-    if ESPPlayers[plr] then
-        ESPPlayers[plr].Gui:Destroy()
-        ESPPlayers[plr] = nil
-    end
+ if ESPPlayers[plr] and ESPPlayers[plr].Gui then
+    ESPPlayers[plr].Gui:Destroy()
+end
+ESPPlayers[plr] = nil
 end)
 
 task.spawn(function()
@@ -1173,5 +973,360 @@ task.spawn(function()
 		end
 	end
 end)
+
+--========================================================--
+-- Main
+--========================================================--
+MainTab:CreateToggle({
+    Name = "Fly",
+    CurrentValue = State.Fly,
+    Callback = function(v)
+        State.Fly = v
+        SaveState()
+        Notify("Main","Fly : "..(v and "ON" or "OFF"))
+    end
+})
+
+MainTab:CreateSlider({
+    Name = "Fly Speed",
+    Range = {30, 200},
+    Increment = 5,
+    CurrentValue = State.FlySpeed,
+    Callback = function(v)
+        State.FlySpeed = v
+        SaveState()
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Enable Speed",
+    CurrentValue = State.Speedy,
+    Callback = function(v)
+        State.Speedy = v
+        SaveState()
+        Notify("Main","Speed : "..(v and "ON" or "OFF"))
+    end
+})
+
+MainTab:CreateSlider({
+    Name = "Walk Speed",
+    Range = {16, 120},
+    Increment = 1,
+    CurrentValue = State.Speed,
+    Callback = function(v)
+        State.Speed = v
+        SaveState()
+        Notify("Main","Speed set to : "..v)
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Enable Jump",
+    CurrentValue = State.Jumpy,
+    Callback = function(v)
+        State.Jumpy = v
+        SaveState()
+        Notify("Main","Jump : "..(v and "ON" or "OFF"))
+    end
+})
+
+MainTab:CreateSlider({
+    Name = "Jump Power",
+    Range = {50, 200},
+    Increment = 5,
+    CurrentValue = State.Jump,
+    Callback = function(v)
+        State.Jump = v
+        SaveState()
+        Notify("Main","JumpPower set to : "..v)
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Walk On Water",
+    CurrentValue = State.WalkOnWater,
+    Callback = function(v)
+        State.WalkOnWater = v
+        SaveState()
+        Notify("Main","Walk On Water : "..(v and "ON" or "OFF"))
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "God Mode",
+    CurrentValue = State.GodMode,
+    Callback = function(v)
+        State.GodMode = v
+        SaveState()
+        Notify("Main","God Mode : "..(v and "ON" or "OFF"))
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "Noclip",
+    CurrentValue = State.Noclip,
+    Callback = function(v)
+        State.Noclip = v
+        SaveState()
+        Notify("Main","Noclip : "..(v and "ON" or "OFF"))
+    end
+})
+
+--========================================================--
+-- INVISIBLE CORE V3 (PERSISTENT + SAFE)
+--========================================================--
+local InvisCache = {}
+
+local function CacheChar(char)
+    InvisCache = {}
+    for _,v in ipairs(char:GetDescendants()) do
+        if v:IsA("BasePart") then
+            InvisCache[v] = {
+                LTM = v.LocalTransparencyModifier,
+                Shadow = v.CastShadow
+            }
+        elseif v:IsA("Decal") then
+            InvisCache[v] = {
+                Transparency = v.Transparency
+            }
+        end
+    end
+end
+
+local function ApplyInvisible(char)
+    CacheChar(char)
+
+    for _,v in ipairs(char:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.LocalTransparencyModifier = 1
+            v.CastShadow = false
+        elseif v:IsA("Decal") then
+            v.Transparency = 1
+        end
+    end
+
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.NameDisplayDistance = 0
+        hum.HealthDisplayDistance = 0
+    end
+end
+
+local function RemoveInvisible()
+    for obj,data in pairs(InvisCache) do
+        if obj and obj.Parent then
+            if obj:IsA("BasePart") then
+                obj.LocalTransparencyModifier = data.LTM or 0
+                obj.CastShadow = data.Shadow ~= false
+            elseif obj:IsA("Decal") then
+                obj.Transparency = data.Transparency or 0
+            end
+        end
+    end
+    table.clear(InvisCache)
+end
+
+lp.CharacterAdded:Connect(function(char)
+    char:WaitForChild("HumanoidRootPart", 5)
+
+    if State.Invisible then
+        task.wait(0.15)
+        ApplyInvisible(char)
+    end
+end)
+
+MainTab:CreateToggle({
+    Name = "Invisible (Persistent)",
+    CurrentValue = State.Invisible,
+    Callback = function(v)
+        State.Invisible = v
+        SaveState()
+
+        local char = lp.Character
+        if not char then return end
+
+        if v then
+            ApplyInvisible(char)
+            Notify("Main","Invisible ON")
+        else
+            RemoveInvisible()
+            Notify("Main","Invisible OFF")
+        end
+    end
+})
+
+MainTab:CreateToggle({
+    Name = "ESP",
+    CurrentValue = State.ESP,
+    Callback = function(v)
+        State.ESP = v
+        SaveState()
+        Notify("Main","ESP : "..(v and "ON" or "OFF"))
+    end
+})
+
+--========================================================--
+-- SYSTEM
+--========================================================--
+SystemTab:CreateToggle({
+    Name = "Anti Staff Detect",
+    CurrentValue = false,
+    Callback = function(v)
+        State.AntiStaff = v
+    end
+})
+
+SystemTab:CreateToggle({
+    Name = "Auto Server Hop",
+    CurrentValue = false,
+    Callback = function(v)
+        State.AutoHop = v
+    end
+})
+SystemTab:CreateToggle({
+    Name = "Anti Void",
+    CurrentValue = State.AntiVoid,
+    Callback = function(v)
+        State.AntiVoid = v
+        getgenv().AntiVoidHandle = v
+        SaveState()
+        Notify("System","Anti Void : "..(v and "ON" or "OFF"))
+    end
+})
+
+SystemTab:CreateToggle({
+    Name = "Anti Kick",
+    CurrentValue = getgenv().ED_AntiKick.Enabled,
+    Callback = function(v)
+        getgenv().ED_AntiKick.Enabled = v
+        SaveState()
+        Notify("System","Anti Kick : "..(v and "ON" or "OFF"))
+    end
+})
+
+SystemTab:CreateToggle({
+    Name = "Anti AFK",
+    CurrentValue = State.AntiAFK,
+    Callback = function(v)
+        State.AntiAFK = v
+        SaveState()
+        Notify("System","Anti AFK : "..(v and "ON" or "OFF"))
+    end
+})
+
+SystemTab:CreateToggle({
+    Name = "Auto Rejoin",
+    CurrentValue = State.AutoRejoin,
+    Callback = function(v)
+        State.AutoRejoin = v
+        SaveState()
+        Notify("System","Auto Rejoin : "..(v and "ON" or "OFF"))
+    end
+})
+
+SystemTab:CreateToggle({
+    Name = "FPS Booster",
+    CurrentValue = State.FPSBoost,
+    Callback = function(v)
+        State.FPSBoost = v
+        SaveState()
+
+        if v then
+            EnableFPSBoost()
+            Notify("System","FPS Booster Enabled",2)
+        else
+            DisableFPSBoost()
+            Notify("System","FPS Booster Disabled",2)
+        end
+    end
+})
+
+--========================================================--
+-- TROLL
+--========================================================--
+TrollTab:CreateToggle({
+    Name = "Auto Fling",
+    CurrentValue = State.AutoFling,
+    Callback = function(v)
+        State.AutoFling = v
+        SaveState()
+        Notify("Troll","Auto Fling : "..(v and "ON" or "OFF"))
+    end
+})
+
+TrollTab:CreateDropdown({
+    Name = "Fling Mode",
+    Options = {"Normal","Orbit","Tornado"},
+    CurrentOption = {State.FlingMode},
+    Callback = function(v)
+        State.FlingMode = v[1]
+        SaveState()
+        Notify("Troll", "Fling Mode : "..State.FlingMode)
+    end
+})
+
+TrollTab:CreateSlider({
+    Name = "Power",
+    Range = {200,2000},
+    Increment = 50,
+    CurrentValue = State.Power,
+    Callback = function(v)
+        State.Power = v
+        SaveState()
+        Notify("Troll", "Power set to : "..v)
+    end
+})
+
+TrollTab:CreateToggle({
+    Name = "Counter Fling",
+    CurrentValue = State.CounterFling,
+    Callback = function(v)
+        State.CounterFling = v
+        SaveState()
+        Notify("Troll","Counter Fling : "..(v and "ON" or "OFF"))
+    end
+})
+
+TrollTab:CreateToggle({
+    Name = "Bring All",
+    CurrentValue = State.BringLoop,
+    Callback = function(v)
+        State.BringLoop = v
+        SaveState()
+        Notify("Troll","Bring All : "..(v and "ON" or "OFF"))
+    end
+})
+
+TrollTab:CreateButton({
+    Name = "Bring Nearest",
+    Callback = function()
+        local myChar = lp.Character
+        local myHRP = GetHRP(myChar)
+        if not myHRP then
+    return
+end
+
+        local nearest, dist = nil, math.huge
+
+        for _,p in ipairs(Players:GetPlayers()) do
+            if p ~= lp and p.Character and IsAlive(p.Character) then
+                local hrp = GetHRP(p.Character)
+                if hrp then
+                    local d = (hrp.Position - myHRP.Position).Magnitude
+                    if d < dist then
+                        dist = d
+                        nearest = hrp
+                    end
+                end
+            end
+        end
+
+        if nearest then
+            nearest.CFrame = myHRP.CFrame * CFrame.new(0,0,-4)
+            Notify("Troll","Nearest player brought",2)
+        end
+    end
+})
+
 task.wait(3.5)
 Notify("[ SYSTEM ] QueryHub","Succesfully Load Scripts..",4)
