@@ -141,7 +141,7 @@ local Window = Rayfield:CreateWindow({
     },
     KeySystem = false
 })
-task.wait(0.35)
+
 local MainTab = Window:CreateTab("Main", 6031071053)
 local TrollTab  = Window:CreateTab("Troll", 6031075929)
 local SystemTab = Window:CreateTab("Server", 6031075928)
