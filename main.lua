@@ -1,4 +1,3 @@
-
 --====================================================--
 -- QueryHub Gateway | ULTRA MODERN UI + BADGE KEY
 -- PREMIUM • SMOOTH • SAFE
@@ -97,10 +96,12 @@ local function safeHttp(url)
     return ok and res or nil
 end
 
+-- FIXED HASH (Luau compatible)
 local function hash(str)
     local h = 5381
     for i = 1, #str do
-        h = ((h * 33) ~ str:byte(i)) % 2147483647
+        h = bit32.bxor(h * 33, str:byte(i))
+        h = h % 2147483647
     end
     return tostring(h)
 end
@@ -120,9 +121,10 @@ local function verifyKey(input)
 
     local ih = hash(input)
     for line in raw:gmatch("[^\r\n]+") do
-        local k,t = line:match("(.+)|(.+)|")
+        -- support: key|type  OR  key|type|
+        local k,t = line:match("^([^|]+)|([^|]+)")
         if k and hash(k) == ih then
-            return true, t -- t = key type
+            return true, t
         end
     end
 
@@ -173,7 +175,6 @@ local Progress = TabAccess:CreateSlider({
     Increment = 1,
     Suffix = "%",
     CurrentValue = 0,
-    Flag = "VERIFY_PROGRESS",
     Callback = function() end
 })
 
@@ -202,7 +203,7 @@ TabAccess:CreateButton({
 })
 
 ------------------------
--- SESSION / BADGE TAB
+-- SESSION TAB
 ------------------------
 TabStatus:CreateSection("📡 Environment")
 
@@ -228,75 +229,75 @@ local Badge = TabStatus:CreateParagraph({
 ------------------------
 task.spawn(function()
     while task.wait() do
-        if verifying then
-            verifying = false
+        if not verifying then
+            continue
+        end
+        verifying = false
 
-            if os.clock() - Session.lastTry < 2 then
-                Status:Set({
-                    Title = "COOLDOWN",
-                    Content = "Please wait..."
-                })
-                continue
-            end
-            Session.lastTry = os.clock()
-
-            -- smooth progress
-            for i = 0, 100, math.random(6,12) do
-                Progress:Set(i)
-                task.wait(0.035)
-            end
-
-            local ok, result = verifyKey(INPUT_KEY)
-            if not ok then
-                Session.fail += 1
-                Progress:Set(0)
-                Status:Set({
-                    Title = "DENIED",
-                    Content = result
-                })
-                Badge:Set({
-                    Title = "KEY STATUS",
-                    Content = "❌ INVALID"
-                })
-                Rayfield:Notify({
-                    Title = "Access Denied",
-                    Content = result,
-                    Duration = 2.5,
-                    Image = ICON_ID
-                })
-                continue
-            end
-
-            ---------------- SUCCESS ----------------
-            Session.verified = true
-            Session.userid   = lp.UserId
-            Session.time     = os.time()
-            getgenv().__QUERYHUB_LOCK = true
-
-            local tier = string.upper(result)
-            Session.badge = tier
-
+        if os.clock() - Session.lastTry < 2 then
             Status:Set({
-                Title = "ACCESS GRANTED ✔",
-                Content = "Key Type : "..tier
+                Title = "COOLDOWN",
+                Content = "Please wait..."
             })
+            continue
+        end
+        Session.lastTry = os.clock()
 
+        for i = 0, 100, math.random(8,12) do
+            Progress:Set(math.clamp(i,0,100))
+            task.wait(0.035)
+        end
+
+        local ok, result = verifyKey(INPUT_KEY)
+        if not ok then
+            Session.fail += 1
+            Progress:Set(0)
+            Status:Set({
+                Title = "DENIED",
+                Content = result
+            })
             Badge:Set({
-                Title = "KEY BADGE",
-                Content = BADGE_STYLE[tier] or ("🟩 PREMIUM • "..tier)
+                Title = "KEY STATUS",
+                Content = "❌ INVALID"
             })
-
             Rayfield:Notify({
-                Title = "Welcome",
-                Content = "QueryHub Unlocked",
-                Duration = 3,
+                Title = "Access Denied",
+                Content = result,
+                Duration = 2.5,
                 Image = ICON_ID
             })
-
-            task.delay(2, function()
-                Rayfield:Destroy()
-                loadstring(game:HttpGet(MAIN_URL))()
-            end)
+            continue
         end
+
+        -- SUCCESS
+        Session.verified = true
+        Session.userid   = lp.UserId
+        Session.time     = os.time()
+        getgenv().__QUERYHUB_LOCK = true
+
+        local tier = string.upper(result)
+        Session.badge = tier
+
+        Status:Set({
+            Title = "ACCESS GRANTED ✔",
+            Content = "Key Type : "..tier
+        })
+
+        Badge:Set({
+            Title = "KEY BADGE",
+            Content = BADGE_STYLE[tier] or ("🟩 PREMIUM • "..tier)
+        })
+
+        Rayfield:Notify({
+            Title = "Welcome",
+            Content = "QueryHub Unlocked",
+            Duration = 3,
+            Image = ICON_ID
+        })
+
+        task.delay(2, function()
+            Rayfield:Destroy()
+            loadstring(game:HttpGet(MAIN_URL))()
+        end)
     end
 end)
