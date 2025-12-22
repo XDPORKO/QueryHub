@@ -56,7 +56,7 @@ end
 local CONFIG = {
     KEY_URL  = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/key.txt",
     MAIN_URL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/xpdvsp1.lua",
-    ICON_ID  = 4483345998,
+    ICON_ID  = 124796029670238,
     THEME    = "Amethyst"
 }
 
