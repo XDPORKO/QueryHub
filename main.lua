@@ -135,6 +135,7 @@ local Window = Rayfield:CreateWindow({
     LoadingTitle = "QueryHub",
     LoadingSubtitle = "Secure Verification",
     Icon = ICON_ID,
+    DisableRayfieldPrompts = true,
     ConfigurationSaving = false
 })
 
