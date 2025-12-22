@@ -13,7 +13,7 @@ local ambatukam = 124796029670238 -- ID default (Shield/Hub Icon) jika 124796029
 
 -- Authentication Guard (Bypass Check)
 local S = getgenv().__QUERYHUB_SESSION
-if not S or S.verified ~= true or not S.userid ~= lp.UserId then
+if not S or S.verified ~= true or S.userid ~= lp.UserId then
     lp:Kick("[ SYSTEM ] Eits, kalo bypass mikir kidsss 🤭💦")
     return
 end
