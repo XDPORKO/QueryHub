@@ -90,13 +90,6 @@ local function LoadState()
 end
 LoadState()
 
-if State.FPSBoost then
-    task.spawn(function()
-        task.wait(0.5)
-        EnableFPSBoost()
-    end)
-end
-
 local function GetHRP(char)
     return char and char:FindFirstChild("HumanoidRootPart")
 end
@@ -294,14 +287,16 @@ if not getgenv().__ANTIKICK then
     local old = mt.__namecall
     setreadonly(mt,false)
 
-    mt.__namecall = newcclosure(function(self,...)
-        if self == lp
-        and getgenv().ED_AntiKick.Enabled
-        and getnamecallmethod():lower() == "kick" then
-            return task.wait(9e9)
-        end
-        return old(self,...)
-    end)
+ mt.__namecall = newcclosure(function(self,...)
+    local method = getnamecallmethod and getnamecallmethod()
+    if self == lp
+    and getgenv().ED_AntiKick.Enabled
+    and method
+    and method:lower() == "kick" then
+        return task.wait(9e9)
+    end
+    return old(self,...)
+end)
 
     setreadonly(mt,true)
 end
@@ -336,10 +331,10 @@ local function RealFling(targetHRP)
     if not myHRP or not targetHRP then return end
 
     -- paksa ownership (executor wajib support)
-    pcall(function()
-        sethiddenproperty(myHRP, "NetworkOwnershipRule", Enum.NetworkOwnership.Manual)
-        sethiddenproperty(myHRP, "NetworkOwner", lp)
-    end)
+ pcall(function()
+    sethiddenproperty(nearest, "NetworkOwnershipRule", Enum.NetworkOwnership.Manual)
+    sethiddenproperty(nearest, "NetworkOwner", lp)
+end)
 
     local bv = Instance.new("BodyVelocity")
     bv.MaxForce = Vector3.new(9e9,9e9,9e9)
@@ -584,7 +579,9 @@ hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
 hum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
 hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
 
-hum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+pcall(function()
+    hum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+end)
 
     FlyBV = Instance.new("BodyVelocity")
     FlyBV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
@@ -596,7 +593,7 @@ hum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
     FlyBG.MaxTorque = Vector3.new(5e6,5e6,5e6)
     FlyBG.CFrame = hrp.CFrame
     FlyBG.Parent = hrp
-    
+
     local lastMove = Vector3.zero
 
 FlyConn = RunService.RenderStepped:Connect(function(dt)
@@ -702,6 +699,33 @@ end)
 --========================================================--
 local ESPConn
 
+local function CreateESP(plr)
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "ESP"
+    bb.Size = UDim2.new(0,200,0,60)
+    bb.AlwaysOnTop = true
+    bb.StudsOffset = Vector3.new(0,3,0)
+
+    local tl = Instance.new("TextLabel")
+    tl.Size = UDim2.new(1,0,1,0)
+    tl.BackgroundTransparency = 1
+    tl.TextColor3 = Color3.fromRGB(255,80,80)
+    tl.TextStrokeTransparency = 0
+    tl.RichText = true
+    tl.TextScaled = true
+    tl.Font = Enum.Font.GothamBold
+    tl.Parent = bb
+
+    return bb, tl
+end
+
+local function ClearESP()
+    for _,v in pairs(ESPPlayers) do
+        if v.Gui then v.Gui:Destroy() end
+    end
+    table.clear(ESPPlayers)
+end
+
 local function StartESP()
     if ESPConn then return end
 
@@ -741,7 +765,6 @@ local function StartESP()
         end
     end)
 
-    getgenv().__MAID:Give(ESPConn)
 end
 
 local function StopESP()
@@ -980,18 +1003,17 @@ ESPPlayers[plr] = nil
 end)
 
 task.spawn(function()
-	while task.wait(30) do
-		if State.AntiAFK then
-			VirtualUser:Button2Down(Vector2.zero, workspace.CurrentCamera.CFrame)
-			task.wait(0.1)
-			VirtualUser:Button2Up(Vector2.zero, workspace.CurrentCamera.CFrame)
-		end
-	end
+        while task.wait(30) do
+                if State.AntiAFK then
+                        VirtualUser:Button2Down(Vector2.zero, workspace.CurrentCamera.CFrame)
+                        task.wait(0.1)
+                        VirtualUser:Button2Up(Vector2.zero, workspace.CurrentCamera.CFrame)
+                end
+        end
 end)
 
 lp.OnTeleport:Connect(function(state)
     if state == Enum.TeleportState.Started then
-        getgenv().__MAID:Clean()
     end
 end)
 
