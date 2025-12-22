@@ -1,32 +1,3 @@
-local Maid = {}
-Maid.__index = Maid
-
-function Maid.new()
-    return setmetatable({Tasks = {}}, Maid)
-end
-
-function Maid:Give(task)
-    if not task then return end
-    table.insert(self.Tasks, task)
-    return task
-end
-
-function Maid:Clean()
-    for _,v in ipairs(self.Tasks) do
-        pcall(function()
-            if typeof(v) == "RBXScriptConnection" then
-                v:Disconnect()
-            elseif typeof(v) == "Instance" then
-                v:Destroy()
-            elseif type(v) == "function" then
-                v()
-            end
-        end)
-    end
-    table.clear(self.Tasks)
-end
-getgenv().__MAID = getgenv().__MAID or Maid.new()
-
 local ahcrot = game:GetService("Players")
 local lozer = ahcrot.LocalPlayer
 
