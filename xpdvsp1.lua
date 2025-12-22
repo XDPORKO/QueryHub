@@ -125,14 +125,11 @@ local function ClearConnections()
     table.clear(Connections)
 end
 
-getgenv().__MAID:Give(
     lp.AncestryChanged:Connect(function(_, parent)
         if not parent then
             ClearConnections()
-            getgenv().__MAID:Clean()
         end
     end)
-)
 
 --========================================================--
 -- RAYFIELD UI
@@ -171,7 +168,6 @@ local TrollTab  = Window:CreateTab("Troll", 6031075929)
 local SystemTab = Window:CreateTab("Server", 6031075928)
 
 --====================== WALK SPEED + JUMP POWER ===================--
-getgenv().__MAID:Give(
 RunService.Heartbeat:Connect(function()
     local char = lp.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -188,13 +184,12 @@ RunService.Heartbeat:Connect(function()
     else
         hum.JumpPower = 50
     end
-end))
+end)
 --========================================================--
 -- WALK ON WATER V2 (STABLE)
 --========================================================--
 local waterPart
 
-getgenv().__MAID:Give(
 RunService.Heartbeat:Connect(function()
     if not State.WalkOnWater then
         if waterPart then
@@ -221,7 +216,7 @@ RunService.Heartbeat:Connect(function()
         hrp.Position.Y - 3.2,
         hrp.Position.Z
     )
-end))
+end)
 --========================================================--
 -- NOCLIP CORE (SAFE + TOGGLE)
 --========================================================--
