@@ -1,6 +1,7 @@
+
 --====================================================--
--- QueryHub Gateway | CLEAN & UPGRADED
--- STABLE • SAFE • MODERN
+-- QueryHub Gateway | ULTRA MODERN UI + BADGE KEY
+-- PREMIUM • SMOOTH • SAFE
 --====================================================--
 
 ------------------------
@@ -10,7 +11,7 @@ local Players = game:GetService("Players")
 local lp = Players.LocalPlayer
 
 ------------------------
--- SECURITY
+-- HARD SECURITY
 ------------------------
 local function HardKick(reason)
     task.spawn(function()
@@ -36,14 +37,14 @@ local ALLOWED_EXECUTORS = {
 
 do
     local exec = getExecutor():lower()
-    local allowed = false
+    local ok = false
     for _,v in ipairs(ALLOWED_EXECUTORS) do
         if exec:find(v,1,true) then
-            allowed = true
+            ok = true
             break
         end
     end
-    if not allowed then
+    if not ok then
         HardKick("Executor not supported : "..exec)
         return
     end
@@ -71,7 +72,7 @@ local ICON_ID  = 124796029670238
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 ------------------------
--- SESSION (MAIN SCRIPT SAFE)
+-- SESSION
 ------------------------
 local Session = {
     verified = false,
@@ -79,7 +80,8 @@ local Session = {
     executor = getExecutor(),
     time     = 0,
     lastTry  = 0,
-    fail     = 0
+    fail     = 0,
+    badge    = "UNVERIFIED"
 }
 
 getgenv().__QUERYHUB_SESSION = Session
@@ -96,15 +98,15 @@ local function safeHttp(url)
 end
 
 local function hash(str)
-    local h = 0
+    local h = 5381
     for i = 1, #str do
-        h = (h * 33 + str:byte(i)) % 2147483647
+        h = ((h * 33) ~ str:byte(i)) % 2147483647
     end
     return tostring(h)
 end
 
 ------------------------
--- KEY CHECK
+-- KEY VERIFY
 ------------------------
 local function verifyKey(input)
     if type(input) ~= "string" or #input < 5 then
@@ -120,7 +122,7 @@ local function verifyKey(input)
     for line in raw:gmatch("[^\r\n]+") do
         local k,t = line:match("(.+)|(.+)|")
         if k and hash(k) == ih then
-            return true, t
+            return true, t -- t = key type
         end
     end
 
@@ -128,27 +130,45 @@ local function verifyKey(input)
 end
 
 ------------------------
--- UI SETUP
+-- BADGE STYLE
+------------------------
+local BADGE_STYLE = {
+    FREE      = "🟦 FREE ACCESS",
+    VIP       = "🟨 VIP MEMBER",
+    LIFETIME  = "🟪 LIFETIME ACCESS",
+    ADMIN     = "🟥 ADMIN ACCESS"
+}
+
+------------------------
+-- WINDOW
 ------------------------
 local Window = Rayfield:CreateWindow({
-    Name = "QueryHub Gateway",
-    LoadingTitle = "QueryHub",
-    LoadingSubtitle = "Secure Verification",
+    Name = "QueryHub",
+    LoadingTitle = "QueryHub Gateway",
+    LoadingSubtitle = "Encrypted Access Layer",
     Icon = ICON_ID,
     DisableRayfieldPrompts = true,
     ConfigurationSaving = false
 })
 
-local TabKey  = Window:CreateTab("Key System", ICON_ID)
-local TabInfo = Window:CreateTab("Info", ICON_ID)
+------------------------
+-- TABS
+------------------------
+local TabAccess = Window:CreateTab("Access", ICON_ID)
+local TabStatus = Window:CreateTab("Session", ICON_ID)
 
-local Status = TabKey:CreateParagraph({
-    Title = "Status",
-    Content = "Waiting for key..."
+------------------------
+-- ACCESS UI
+------------------------
+TabAccess:CreateSection("🔐 Secure Verification")
+
+local Status = TabAccess:CreateParagraph({
+    Title = "STATUS",
+    Content = "Idle • Awaiting key"
 })
 
-local Progress = TabKey:CreateSlider({
-    Name = "Verification",
+local Progress = TabAccess:CreateSlider({
+    Name = "Access Progress",
     Range = {0,100},
     Increment = 1,
     Suffix = "%",
@@ -160,32 +180,47 @@ local Progress = TabKey:CreateSlider({
 local INPUT_KEY = ""
 local verifying = false
 
-TabKey:CreateInput({
+TabAccess:CreateInput({
     Name = "Premium Key",
-    PlaceholderText = "ENTER YOUR KEY",
+    PlaceholderText = "XXXX-XXXX-XXXX",
     RemoveTextAfterFocusLost = false,
     Callback = function(text)
         INPUT_KEY = tostring(text)
     end
 })
 
-TabKey:CreateButton({
-    Name = "VERIFY",
+TabAccess:CreateButton({
+    Name = "Authenticate",
     Callback = function()
         if verifying then return end
         verifying = true
-        Status:Set({Title="Status",Content="Verifying..."})
+        Status:Set({
+            Title = "STATUS",
+            Content = "Authenticating..."
+        })
     end
 })
 
-TabInfo:CreateParagraph({
+------------------------
+-- SESSION / BADGE TAB
+------------------------
+TabStatus:CreateSection("📡 Environment")
+
+TabStatus:CreateParagraph({
     Title = "Executor",
     Content = Session.executor
 })
 
-TabInfo:CreateParagraph({
-    Title = "UserId",
+TabStatus:CreateParagraph({
+    Title = "User ID",
     Content = tostring(lp.UserId)
+})
+
+TabStatus:CreateSection("🏷️ Key Badge")
+
+local Badge = TabStatus:CreateParagraph({
+    Title = "KEY STATUS",
+    Content = "Not Verified"
 })
 
 ------------------------
@@ -197,44 +232,63 @@ task.spawn(function()
             verifying = false
 
             if os.clock() - Session.lastTry < 2 then
-                Status:Set({Title="Cooldown",Content="Please wait..."})
+                Status:Set({
+                    Title = "COOLDOWN",
+                    Content = "Please wait..."
+                })
                 continue
             end
             Session.lastTry = os.clock()
 
-            for i = 0, 100, 25 do
+            -- smooth progress
+            for i = 0, 100, math.random(6,12) do
                 Progress:Set(i)
-                task.wait(0.05)
+                task.wait(0.035)
             end
 
             local ok, result = verifyKey(INPUT_KEY)
             if not ok then
                 Session.fail += 1
                 Progress:Set(0)
-                Status:Set({Title="Error",Content=result})
+                Status:Set({
+                    Title = "DENIED",
+                    Content = result
+                })
+                Badge:Set({
+                    Title = "KEY STATUS",
+                    Content = "❌ INVALID"
+                })
                 Rayfield:Notify({
-                    Title = "Verification Failed",
+                    Title = "Access Denied",
                     Content = result,
-                    Duration = 2,
+                    Duration = 2.5,
                     Image = ICON_ID
                 })
                 continue
             end
 
-            -- SUCCESS
+            ---------------- SUCCESS ----------------
             Session.verified = true
             Session.userid   = lp.UserId
             Session.time     = os.time()
             getgenv().__QUERYHUB_LOCK = true
 
+            local tier = string.upper(result)
+            Session.badge = tier
+
             Status:Set({
                 Title = "ACCESS GRANTED ✔",
-                Content = "Key Type : "..result
+                Content = "Key Type : "..tier
+            })
+
+            Badge:Set({
+                Title = "KEY BADGE",
+                Content = BADGE_STYLE[tier] or ("🟩 PREMIUM • "..tier)
             })
 
             Rayfield:Notify({
                 Title = "Welcome",
-                Content = "QueryHub Loaded",
+                Content = "QueryHub Unlocked",
                 Duration = 3,
                 Image = ICON_ID
             })
