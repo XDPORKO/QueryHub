@@ -13,7 +13,9 @@ local ambatukam = 4483345998 -- ID default (Shield/Hub Icon) jika 12479602967023
 
 -- Authentication Guard (Bypass Check)
 local S = getgenv().__QUERYHUB_SESSION
-if not S or S.verified ~= true or S.userid ~= lp.UserId or not getgenv().__QUERYHUB_LOCK then
+(if not S)
+(or S.verified ~= true)
+(or not S.userid ~= lp.UserId then)
     lp:Kick("[ SYSTEM ] Eits, kalo bypass mikir kidsss 🤭💦")
     return
     warn("Auth Session not found, running in Dev Mode.")
