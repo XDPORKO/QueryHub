@@ -145,7 +145,7 @@ local Window = Rayfield:CreateWindow({
     Name = "Query HUB",
     LoadingTitle = "Universal Script • V1.0",
     LoadingSubtitle = "Develope By Rapp.site.vip",
-    Icon = 90931757626132,
+    Icon = 124796029670238,
     Padding = 10, 
     ConfigurationSaving = {
         Enabled = false
@@ -165,7 +165,7 @@ local function Notify(t, d, s, i)
         Title = t,
         Content = d,
         Duration = s or 3,
-        Image = i or 90931757626132
+        Image = i or 124796029670238
     })
 end
 
