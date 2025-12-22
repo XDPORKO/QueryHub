@@ -9,7 +9,7 @@ local Players = game:GetService("Players")
 local lp = Players.LocalPlayer
 
 -- Fix Icon ID (Jika ID terlalu besar, gunakan ID default Roblox atau string)
-local ambatukam = 4483345998 -- ID default (Shield/Hub Icon) jika 124796029670238 gagal load
+local ambatukam = 124796029670238 -- ID default (Shield/Hub Icon) jika 124796029670238 gagal load
 
 -- Authentication Guard (Bypass Check)
 local S = getgenv().__QUERYHUB_SESSION
