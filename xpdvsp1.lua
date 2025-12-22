@@ -147,6 +147,8 @@ local Window = Rayfield:CreateWindow({
     LoadingTitle = "Universal Script • V1.2",
     LoadingSubtitle = "Develope By Rapp.site.vip",
     Icon = ambatukam,
+    Theme = "Light",
+    DisableBuildWarnings = true,
     DisableRayfieldPrompts = true,
     ConfigurationSaving = {
         Enabled = false
@@ -157,9 +159,9 @@ local Window = Rayfield:CreateWindow({
     KeySystem = false
 })
 
-local MainTab = Window:CreateTab("Main", 6031071053)
-local TrollTab  = Window:CreateTab("Troll", 6031075929)
-local SystemTab = Window:CreateTab("Server", 6031075928)
+local MainTab = Window:CreateTab("Main", ambatukam)
+local TrollTab  = Window:CreateTab("Troll", ambatukam)
+local SystemTab = Window:CreateTab("Server", ambatukam)
 
 local function Notify(t, d, s, i)
     Rayfield:Notify({
