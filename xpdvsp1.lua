@@ -97,7 +97,6 @@ local Window = Rayfield:CreateWindow({
     Name = "Query HUB",
     LoadingTitle = "Universal Script • V1.2",
     LoadingSubtitle = "Developed By Rapp.site.vip",
-    Icon = ambatukam,
     Theme = "Light",
     DisableBuildWarnings = true,
     ConfigurationSaving = { Enabled = false }
