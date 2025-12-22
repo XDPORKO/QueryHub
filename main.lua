@@ -56,10 +56,10 @@ local KEY_URL  = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/key.tx
 local MAIN_URL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/xpdvsp1.lua"
 
 --================== ICONS ==================--
-local ICON_APP     = 90931757626132
-local ICON_KEY     = 90931757626132
-local ICON_SUCCESS = 90931757626132
-local ICON_ERROR   = 90931757626132
+local ICON_APP     = 124796029670238
+local ICON_KEY     = 124796029670238
+local ICON_SUCCESS = 124796029670238
+local ICON_ERROR   = 124796029670238
 
 --================== UI LIB ==================--
 local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
