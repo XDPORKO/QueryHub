@@ -143,10 +143,10 @@ end
 
 local Window = Rayfield:CreateWindow({
     Name = "Query HUB",
-    LoadingTitle = "Universal Script • V1.0",
+    LoadingTitle = "Universal Script • V1.2",
     LoadingSubtitle = "Develope By Rapp.site.vip",
     Icon = 124796029670238,
-    Padding = 10, 
+    DisableRayfieldPrompts = true,
     ConfigurationSaving = {
         Enabled = false
     },
