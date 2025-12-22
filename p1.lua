@@ -20,6 +20,7 @@ local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
 local TeleportService = game:GetService("TeleportService")
 local HttpService = game:GetService("HttpService")
+local VirtualUser = game:GetService("VirtualUser")
 
 local lp = Players.LocalPlayer
 local cam = workspace.CurrentCamera
@@ -229,6 +230,69 @@ MainTab:CreateToggle({
     end
 })
 
+--========================================================--
+-- INVISIBLE CORE V3 (PERSISTENT + SAFE)
+--========================================================--
+local InvisCache = {}
+
+local function CacheChar(char)
+    InvisCache = {}
+    for _,v in ipairs(char:GetDescendants()) do
+        if v:IsA("BasePart") then
+            InvisCache[v] = {
+                LTM = v.LocalTransparencyModifier,
+                Shadow = v.CastShadow
+            }
+        elseif v:IsA("Decal") then
+            InvisCache[v] = {
+                Transparency = v.Transparency
+            }
+        end
+    end
+end
+
+local function ApplyInvisible(char)
+    CacheChar(char)
+
+    for _,v in ipairs(char:GetDescendants()) do
+        if v:IsA("BasePart") then
+            v.LocalTransparencyModifier = 1
+            v.CastShadow = false
+        elseif v:IsA("Decal") then
+            v.Transparency = 1
+        end
+    end
+
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        hum.NameDisplayDistance = 0
+        hum.HealthDisplayDistance = 0
+    end
+end
+
+local function RemoveInvisible()
+    for obj,data in pairs(InvisCache) do
+        if obj and obj.Parent then
+            if obj:IsA("BasePart") then
+                obj.LocalTransparencyModifier = data.LTM or 0
+                obj.CastShadow = data.Shadow ~= false
+            elseif obj:IsA("Decal") then
+                obj.Transparency = data.Transparency or 0
+            end
+        end
+    end
+    table.clear(InvisCache)
+end
+
+lp.CharacterAdded:Connect(function(char)
+    char:WaitForChild("HumanoidRootPart", 5)
+
+    if State.Invisible then
+        task.wait(0.15)
+        ApplyInvisible(char)
+    end
+end)
+
 MainTab:CreateToggle({
     Name = "Invisible (Persistent)",
     CurrentValue = State.Invisible,
@@ -381,7 +445,9 @@ TrollTab:CreateButton({
     Callback = function()
         local myChar = lp.Character
         local myHRP = GetHRP(myChar)
-        if not myHRP then return end
+        if not myHRP then
+    continue
+end
 
         local nearest, dist = nil, math.huge
 
@@ -412,7 +478,7 @@ RunService.Heartbeat:Connect(function()
     if not hum then return end
 
     -- SPEED
-    if State.SpeedEnabled then
+    if State.Speedy then
         if hum.WalkSpeed ~= State.Speed then
             hum.WalkSpeed = State.Speed
         end
@@ -423,7 +489,7 @@ RunService.Heartbeat:Connect(function()
     end
 
     -- JUMP
-    if State.JumpEnabled then
+    if State.Jumpy then
         if hum.JumpPower ~= State.Jump then
             hum.JumpPower = State.Jump
         end
@@ -436,14 +502,12 @@ end)
 --========================================================--
 -- WALK ON WATER V2 (STABLE)
 --========================================================--
+-- WALK ON WATER (UNIVERSAL FIX)
 local waterPart
 
 RunService.Heartbeat:Connect(function()
     if not State.WalkOnWater then
-        if waterPart then
-            waterPart:Destroy()
-            waterPart = nil
-        end
+        if waterPart then waterPart:Destroy() waterPart=nil end
         return
     end
 
@@ -455,17 +519,16 @@ RunService.Heartbeat:Connect(function()
         waterPart.Anchored = true
         waterPart.CanCollide = true
         waterPart.Transparency = 1
-        waterPart.Size = Vector3.new(100, 1, 100)
+        waterPart.Size = Vector3.new(120,1,120)
         waterPart.Parent = workspace
     end
 
     waterPart.CFrame = CFrame.new(
         hrp.Position.X,
-        workspace.WaterLevel + 0.1,
+        hrp.Position.Y - 3.2,
         hrp.Position.Z
     )
 end)
-
 --========================================================--
 -- NOCLIP CORE (SAFE + TOGGLE)
 --========================================================--
@@ -485,13 +548,10 @@ local function EnableNoclip()
     if NoclipConn then return end
 
     local char = lp.Character
-    if not char then return end
-
-    CacheCollision(char)
+    if char then CacheCollision(char) end -- PINDAH KE SINI
 
     NoclipConn = RunService.Stepped:Connect(function()
         if not State.Noclip then return end
-
         local char = lp.Character
         if not char then return end
 
@@ -575,8 +635,8 @@ RunService.Heartbeat:Connect(function()
     local hrp = GetHRP(char)
     if not hrp then return end
 
-    if hrp.Position.Y > 5 then
-        lastSafeCF_Void = hrp.CFrame
+    if hrp.Position.Y > 5 and hrp.AssemblyLinearVelocity.Magnitude < 60 then
+    lastSafeCF_Void = hrp.CFrame
     end
 
     if hrp.Position.Y < -50 and lastSafeCF_Void then
@@ -585,68 +645,7 @@ RunService.Heartbeat:Connect(function()
         hrp.CFrame = lastSafeCF_Void + Vector3.new(0, 3, 0)
     end
 end)
---========================================================--
--- INVISIBLE CORE V3 (PERSISTENT + SAFE)
---========================================================--
-local InvisCache = {}
 
-local function CacheChar(char)
-    InvisCache = {}
-    for _,v in ipairs(char:GetDescendants()) do
-        if v:IsA("BasePart") then
-            InvisCache[v] = {
-                LTM = v.LocalTransparencyModifier,
-                Shadow = v.CastShadow
-            }
-        elseif v:IsA("Decal") then
-            InvisCache[v] = {
-                Transparency = v.Transparency
-            }
-        end
-    end
-end
-
-local function ApplyInvisible(char)
-    CacheChar(char)
-
-    for _,v in ipairs(char:GetDescendants()) do
-        if v:IsA("BasePart") then
-            v.LocalTransparencyModifier = 1
-            v.CastShadow = false
-        elseif v:IsA("Decal") then
-            v.Transparency = 1
-        end
-    end
-
-    local hum = char:FindFirstChildOfClass("Humanoid")
-    if hum then
-        hum.NameDisplayDistance = 0
-        hum.HealthDisplayDistance = 0
-    end
-end
-
-local function RemoveInvisible()
-    for obj,data in pairs(InvisCache) do
-        if obj and obj.Parent then
-            if obj:IsA("BasePart") then
-                obj.LocalTransparencyModifier = data.LTM or 0
-                obj.CastShadow = data.Shadow ~= false
-            elseif obj:IsA("Decal") then
-                obj.Transparency = data.Transparency or 0
-            end
-        end
-    end
-    table.clear(InvisCache)
-end
-
-lp.CharacterAdded:Connect(function(char)
-    char:WaitForChild("HumanoidRootPart", 5)
-
-    if State.Invisible then
-        task.wait(0.15)
-        ApplyInvisible(char)
-    end
-end)
 --========================================================--
 -- AUTO FLING + COUNTER
 --========================================================--
@@ -776,7 +775,9 @@ RunService.Heartbeat:Connect(function()
     if tick() - flingCooldown < 0.25 then return end
 
     local myHRP = GetHRP(lp.Character)
-    if not myHRP then return end
+    if not myHRP then
+    continue
+end
 
     for _,p in ipairs(Players:GetPlayers()) do
         if p ~= lp and p.Character and IsAlive(p.Character) then
@@ -784,7 +785,13 @@ RunService.Heartbeat:Connect(function()
             if tHRP then
                 flingCooldown = tick()
 
-                SpinFling(myHRP, tHRP)
+                if State.FlingMode == "Normal" then
+    RealFling(tHRP)
+   elseif State.FlingMode == "Orbit" then
+    ApplyFling(myHRP, tHRP)
+    elseif State.FlingMode == "Tornado" then
+    SpinFling(myHRP, tHRP)
+    end
                 break
             end
         end
@@ -805,7 +812,7 @@ RunService.Heartbeat:Connect(function()
     local vel = hrp.AssemblyLinearVelocity
 
     if vel.Magnitude < 35 then
-        lastSafeCf_Fling = hrp.CFrame
+        lastSafeCF_Fling = hrp.CFrame
     end
 
     if vel.Magnitude > 80 then
@@ -819,8 +826,8 @@ RunService.Heartbeat:Connect(function()
         hrp.AssemblyLinearVelocity = Vector3.zero
         hrp.AssemblyAngularVelocity = Vector3.zero
 
-        if lastSafeCf_Fling then
-            hrp.CFrame = lastSafeCf_Fling
+        if lastSafeCF_Fling then
+            hrp.CFrame = lastSafeCF_Fling
         end
 
         if not antiFlingBV then
@@ -842,7 +849,9 @@ task.spawn(function()
         if not State.BringLoop then continue end
 
         local myHRP = GetHRP(lp.Character)
-        if not myHRP then continue end
+        if not myHRP then
+    continue
+end
 
         for _,p in ipairs(Players:GetPlayers()) do
             if p ~= lp and p.Character and IsAlive(p.Character) then
@@ -888,7 +897,12 @@ local function StartFly()
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     if not hrp or not hum then return end
 
-    hum.PlatformStand = true
+hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+hum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+hum:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+
+hum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
 
     FlyBV = Instance.new("BodyVelocity")
     FlyBV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
@@ -896,41 +910,45 @@ local function StartFly()
     FlyBV.Parent = hrp
 
     FlyBG = Instance.new("BodyGyro")
-    FlyBG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-    FlyBG.P = 9e4
+    FlyBG.P = 3e4
+    FlyBG.MaxTorque = Vector3.new(5e6,5e6,5e6)
     FlyBG.CFrame = hrp.CFrame
     FlyBG.Parent = hrp
-
+    
     FlyConn = RunService.RenderStepped:Connect(function()
-        if not State.Fly then
-            StopFly()
-            return
-        end
+    if not State.Fly then
+        StopFly()
+        return
+    end
 
-        local camCF = workspace.CurrentCamera.CFrame
-        local move = Vector3.zero
+    if hum:GetState() ~= Enum.HumanoidStateType.RunningNoPhysics then
+        hum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
+    end
+    
+    local camCF = workspace.CurrentCamera.CFrame
+    local move = Vector3.zero
 
-        -- PC (WASD)
-        if UIS:IsKeyDown(Enum.KeyCode.W) then move += camCF.LookVector end
-        if UIS:IsKeyDown(Enum.KeyCode.S) then move -= camCF.LookVector end
-        if UIS:IsKeyDown(Enum.KeyCode.A) then move -= camCF.RightVector end
-        if UIS:IsKeyDown(Enum.KeyCode.D) then move += camCF.RightVector end
-        if UIS:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0,1,0) end
-        if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then move -= Vector3.new(0,1,0) end
+    -- PC (WASD)
+    if UIS:IsKeyDown(Enum.KeyCode.W) then move += camCF.LookVector end
+    if UIS:IsKeyDown(Enum.KeyCode.S) then move -= camCF.LookVector end
+    if UIS:IsKeyDown(Enum.KeyCode.A) then move -= camCF.RightVector end
+    if UIS:IsKeyDown(Enum.KeyCode.D) then move += camCF.RightVector end
+    if UIS:IsKeyDown(Enum.KeyCode.Space) then move += Vector3.new(0,1,0) end
+    if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then move -= Vector3.new(0,1,0) end
 
-        -- Mobile (thumbstick)
-        local humMove = hum.MoveDirection
-        if humMove.Magnitude > 0 then
-            move += camCF:VectorToWorldSpace(humMove)
-        end
+    -- MOBILE JOYSTICK (FIXED, NO INVERT)
+    local humMove = hum.MoveDirection
+    if humMove.Magnitude > 0 then
+        move += humMove
+    end
 
-        if move.Magnitude > 0 then
-            move = move.Unit
-        end
+    if move.Magnitude > 0 then
+        move = move.Unit
+    end
 
-        FlyBV.Velocity = move * State.FlySpeed
-        FlyBG.CFrame = camCF
-    end)
+    FlyBV.Velocity = move * State.FlySpeed
+    FlyBG.CFrame = camCF
+end)
 end
 
 RunService.Heartbeat:Connect(function()
@@ -938,6 +956,15 @@ RunService.Heartbeat:Connect(function()
         StartFly()
     else
         StopFly()
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if State.Fly then
+        local hum = lp.Character and lp.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.Health < hum.MaxHealth then
+            hum.Health = hum.MaxHealth
+        end
     end
 end)
 
@@ -950,31 +977,29 @@ end)
 --========================================================--
 -- GODMODE V4 (NO DESYNC / NO JUMP DRAIN)
 --========================================================--
+local GodConn
+
 local function ApplyGodmode(char)
     local hum = char:WaitForChild("Humanoid")
 
     hum.BreakJointsOnDeath = false
-    hum.MaxHealth = 100
-    hum.Health = 100
+    local max = hum.MaxHealth
+    hum.Health = max
 
-    if hum:FindFirstChild("__GOD") then
-        hum.__GOD:Disconnect()
-    end
-
-    local conn = hum:GetPropertyChangedSignal("Health"):Connect(function()
+    if GodConn then GodConn:Disconnect() end
+    GodConn = hum:GetPropertyChangedSignal("Health"):Connect(function()
         if State.GodMode and hum.Health < 1 then
-            hum.Health = 100
+            hum.Health = hum.MaxHealth
         end
     end)
-    conn.Name = "__GOD"
 
-    hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-    hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-    hum:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown,false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll,false)
+    hum:SetStateEnabled(Enum.HumanoidStateType.Physics,false)
 end
 
 -- APPLY
-if lp.Character then
+if lp.Character and State.GodMode then
     ApplyGodmode(lp.Character)
 end
 
@@ -1022,7 +1047,11 @@ RunService.RenderStepped:Connect(function()
             local char = plr.Character
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
             local hum = char and char:FindFirstChildOfClass("Humanoid")
-
+            local myHRP = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+            if not myHRP then continue end
+            if State.ESP and hrp and hum.Health > 0 then
+            local dist = math.floor((hrp.Position - myHRP.Position).Magnitude)
+    
             if State.ESP and hrp and hum and hum.Health > 0 then
                 if not ESPPlayers[plr] then
                     local gui, text = CreateESP(plr)
@@ -1031,7 +1060,6 @@ RunService.RenderStepped:Connect(function()
                 end
 
                 local data = ESPPlayers[plr]
-                local dist = math.floor((hrp.Position - lp.Character.HumanoidRootPart.Position).Magnitude)
                 local max = hum.MaxHealth > 0 and hum.MaxHealth or 100
                 local hp = math.clamp(math.floor((hum.Health / max) * 100), 0, 100)
                 
@@ -1056,10 +1084,11 @@ end)
 -- FPS BOOST V2 (OPTIMIZED)
 --========================================================--
 local Lighting = game:GetService("Lighting")
-local FPSCache = {}
+local FPSCache = { Enabled = false }
 local FPSObjects = {}
 
 local function EnableFPSBoost()
+    table.clear(FPSObjects)
     if FPSCache.Enabled then return end
     FPSCache.Enabled = true
 
@@ -1135,5 +1164,14 @@ Players.PlayerRemoving:Connect(function(plr)
     end
 end)
 
+task.spawn(function()
+	while task.wait(30) do
+		if State.AntiAFK then
+			VirtualUser:Button2Down(Vector2.zero, workspace.CurrentCamera.CFrame)
+			task.wait(0.1)
+			VirtualUser:Button2Up(Vector2.zero, workspace.CurrentCamera.CFrame)
+		end
+	end
+end)
 task.wait(3.5)
 Notify("[ SYSTEM ] QueryHub","Succesfully Load Scripts..",4)
