@@ -3,6 +3,7 @@ local lozer = ahcrot.LocalPlayer
 
 local LOADER_URL =
 "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/main.lua"
+local ambatukam = 124796029670238;
 
 local S = getgenv().__QUERYHUB_SESSION
 
@@ -145,7 +146,7 @@ local Window = Rayfield:CreateWindow({
     Name = "Query HUB",
     LoadingTitle = "Universal Script • V1.2",
     LoadingSubtitle = "Develope By Rapp.site.vip",
-    Icon = 124796029670238,
+    Icon = ambatukam,
     DisableRayfieldPrompts = true,
     ConfigurationSaving = {
         Enabled = false
@@ -165,7 +166,7 @@ local function Notify(t, d, s, i)
         Title = t,
         Content = d,
         Duration = s or 3,
-        Image = 124796029670238
+        Image = ambatukam
     })
 end
 
