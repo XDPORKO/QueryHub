@@ -127,17 +127,7 @@ end
 --========================================================--
 -- RAYFIELD UI
 --========================================================--
-local Rayfield
-repeat
-    local ok, lib = pcall(function()
-        return loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
-    end)
-    if ok and type(lib) == "table" and lib.CreateWindow then
-        Rayfield = lib
-    else
-        task.wait(0.2)
-    end
-until Rayfield
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local Window = Rayfield:CreateWindow({
     Name = "Query HUB",
     LoadingTitle = "Universal Script • V1.0",
