@@ -53,7 +53,7 @@ getgenv().__QUERYHUB_LOADED = true
 
 --================== CONFIG ==================--
 local KEY_URL  = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/key.txt"
-local MAIN_URL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/p1.lua"
+local MAIN_URL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/xpdvsp1.lua"
 
 --================== ICONS ==================--
 local ICON_APP     = 71212053414568
