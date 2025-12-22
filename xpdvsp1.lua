@@ -166,7 +166,7 @@ getgenv().__MAID:Give(
 --========================================================--
 -- RAYFIELD UI
 --========================================================--
-local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Rayfield/main/source"))()
 local crot = 90931757626132
 local Window = Rayfield:CreateWindow({
     Name = "Query HUB",
