@@ -108,6 +108,7 @@ local Window = Rayfield:CreateWindow({
     Name = "QueryHub Gateway • v2.0",
     LoadingTitle = "Initializing QueryHub",
     LoadingSubtitle = "by XDPORKO",
+    Icon = ICON_ID,
     ConfigurationSaving = { Enabled = false },
     Theme = CONFIG.THEME,
 })
