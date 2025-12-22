@@ -166,7 +166,7 @@ getgenv().__MAID:Give(
 --========================================================--
 -- RAYFIELD UI
 --========================================================--
-local Rayfield = loadstring(game:HttpGet("https://raw.githubusercontent.com/shlexware/Rayfield/main/source"))()
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 local crot = 90931757626132
 local Window = Rayfield:CreateWindow({
     Name = "Query HUB",
@@ -853,6 +853,13 @@ DisableFPSBoost = function()
     table.clear(FPSObjects)
 end
 
+if State.FPSBoost then
+    task.spawn(function()
+        task.wait(0.5)
+        EnableFPSBoost()
+    end)
+end
+
 --====================================================--
 -- ANTI STAFF + AUTO SERVER HOP (UNIFIED V3)
 --====================================================--
@@ -1379,4 +1386,3 @@ end
 
 task.wait(3.5)
 Notify("[ SYSTEM ] QueryHub","Succesfully Load Scripts..",4)
-
