@@ -12,7 +12,7 @@ local lp = Players.LocalPlayer
 -- CONFIGURATION
 ------------------------
 local CONFIG = {
-    Name = "QueryHub Gateway • Premium",
+    Name = "QueryHub Gateway",
     KeyURL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/key.txt",
     MainURL = "https://raw.githubusercontent.com/XDPORKO/QueryHub/main/xpdvsp1.lua",
     Discord = "https://discord.gg/queryhub", -- Ganti link discordmu
@@ -71,8 +71,9 @@ local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
 
 local Window = Rayfield:CreateWindow({
     Name = CONFIG.Name,
-    LoadingTitle = "QUERYHUB ECOSYSTEM",
-    LoadingSubtitle = "by XDPORKO",
+    LoadingTitle = "QueryHub Secure Gate",
+    LoadingSubtitle = "Develope By Rapp.site.proto.vip.com",
+    ShowText = "Query Hub",
     ConfigurationSaving = { Enabled = false },
     Theme = CONFIG.Theme,
     DisableRayfieldPrompts = false,
@@ -117,7 +118,7 @@ TabAuth:CreateButton({
         task.wait(1) -- Biar ada efek loading sedikit (keren)
 
         if success then
-            StatusLabel:Set({Title = "✅ Access Granted!", Content = "Welcome back! Loading environment..."})
+            StatusLabel:Set({Title = "✅ Access Granted!", Content = "Welcome back!\nLoading environment..."})
             
             -- Setup Session
             getgenv().__QUERYHUB_SESSION = {
