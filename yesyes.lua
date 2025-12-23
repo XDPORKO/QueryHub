@@ -105,9 +105,9 @@ local Window = Rayfield:CreateWindow({
 })
 
 -- TABS
-local MainTab = Window:CreateTab("Main", "main")
-local TrollTab = Window:CreateTab("Troll", "hacker")
-local SystemTab = Window:CreateTab("Server", "server")
+local MainTab = Window:CreateTab("Main", "home")
+local TrollTab = Window:CreateTab("Troll", "skull")
+local SystemTab = Window:CreateTab("Server", "database")
 
 -- SMART NOTIFY
 local function Notify(t, d, s)
