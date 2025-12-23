@@ -111,7 +111,7 @@ TabAuth:CreateButton({
         if Loading then return end
         Loading = true
         
-        StatusLabel:Set({Title = "⏳ Verifying...", Content = "Communicating with GitHub database..."})
+        StatusLabel:Set({Title = "⏳ Verifying...", Content = "Please Wait For Some Validate..."})
 
         local success, data = validate(InputKey)
 
