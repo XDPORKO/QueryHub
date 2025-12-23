@@ -123,98 +123,112 @@ end
 -- SPEED & JUMP
 --========================================================--
 
+-- Optimization: Local variables untuk kecepatan akses
+local Vec3 = Vector3.new
+local EnumState = Enum.HumanoidStateType
+
 local function PatchHumanoid(hum)
     if not hum then return end
     hum.UseJumpPower = true 
-    -- Menghilangkan delay state agar bisa spam jump tanpa delay animasi
-    hum:SetStateEnabled(Enum.HumanoidStateType.Landed, true)
-    hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-    hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-    hum:SetStateEnabled(Enum.HumanoidStateType.PlatformStanding, false)
+    -- Disable states yang sering bikin karakter "nyangkut" atau jatuh saat speed tinggi
+    local disabledStates = {
+        EnumState.FallingDown,
+        EnumState.Ragdoll,
+        EnumState.PlatformStanding,
+        EnumState.StrafingNoPhysics
+    }
+    for _, state in ipairs(disabledStates) do
+        hum:SetStateEnabled(state, false)
+    end
+    hum:ChangeState(EnumState.Running)
 end
 
--- Optimization: Cache service untuk speed eksekusi
-local lastMoveTick = tick()
+-- Task untuk Network Bypass (Tidak perlu setiap frame)
+task.spawn(function()
+    while task.wait(5) do
+        pcall(function()
+            if sethiddenproperty then
+                sethiddenproperty(lp, "SimulationRadius", 1e308)
+                sethiddenproperty(lp, "MaxSimulationRadius", 1e308)
+            end
+        end)
+    end
+end)
 
--- Menggunakan PreSimulation: Tahap paling awal sebelum physics engine menghitung collision
+-- Core Movement Loop
 RunService.PreSimulation:Connect(function(dt)
     local char = lp.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
 
-    if not hum or not hrp then return end
+    if not hum or not hrp or hum.Health <= 0 then return end
 
-    -- [ 1. ABSOLUTE NETWORK BYPASS ]
-    -- Memaksa server untuk menerima posisi kita tanpa validasi (Client-Authoritative)
-    pcall(function()
-        settings().Physics.AllowSleep = false
-        if sethiddenproperty then
-            sethiddenproperty(lp, "SimulationRadius", 1e308) -- Max Double
-            sethiddenproperty(lp, "MaxSimulationRadius", 1e308)
-        end
-    end)
-
-    -- [ 2. MASSLESS ENFORCEMENT ]
-    -- Membuat karakter tidak berbobot agar tidak terpengaruh gravitasi saat lari
-    for _, part in ipairs(char:GetChildren()) do
-        if part:IsA("BasePart") then
-            part.Massless = State.Speedy
-        end
-    end
-
-    -- [ 3. SUPREME SPEED ENGINE ]
+    -- [ 1. SMART SPEED ENGINE ]
     if State.Speedy then
         local moveDir = hum.MoveDirection
         
         if moveDir.Magnitude > 0 then
-            -- METODE A: Linear Velocity Injection (Anti-Rubberband)
-            -- Kita bypass gesekan lantai dengan mengisi velocity langsung
-            local vel = moveDir * State.Speed
-            hrp.AssemblyLinearVelocity = Vector3.new(vel.X, hrp.AssemblyLinearVelocity.Y, vel.Z)
+            -- Kombinasi Velocity & Offset yang halus (Bypass Rubberband)
+            -- Kita prioritaskan Velocity untuk fisik, dan sedikit CFrame untuk akurasi
+            local targetVel = moveDir * State.Speed
+            hrp.AssemblyLinearVelocity = Vec3(targetVel.X, hrp.AssemblyLinearVelocity.Y, targetVel.Z)
             
-            -- METODE B: CFrame Micro-Warping
-            -- Melakukan teleportasi super kecil setiap frame untuk bypass Anti-Cheat berbasis speed
-            local warpSpeed = dt * (State.Speed * 0.95)
-            hrp.CFrame = hrp.CFrame + (moveDir * warpSpeed)
+            -- Anti-Cheat Spoof: Menggeser CFrame sedikit ke depan untuk mencocokkan velocity
+            -- Menggunakan task.defer atau lerp jika ingin lebih smooth
+            hrp.CFrame = hrp.CFrame + (moveDir * (State.Speed * dt * 0.1)) 
         else
-            -- Instant Brake: Berhenti total tanpa terpeleset sedikitpun
-            hrp.AssemblyLinearVelocity = Vector3.new(0, hrp.AssemblyLinearVelocity.Y, 0)
+            -- Active Braking: Menghilangkan inersia agar tidak terpeleset
+            hrp.AssemblyLinearVelocity = Vec3(0, hrp.AssemblyLinearVelocity.Y, 0)
         end
         
-        -- Spoofing WalkSpeed agar animasi kaki tetap sinkron
-        hum.WalkSpeed = math.clamp(State.Speed, 16, 120)
-    else
-        hum.WalkSpeed = 16
+        -- WalkSpeed Spoofing (Hanya untuk animasi)
+        hum.WalkSpeed = 16 
     end
 
-    -- [ 4. SUPREME JUMP ENGINE ]
+    -- [ 2. SMART JUMP ENGINE ]
     if State.Jumpy then
-        PatchHumanoid(hum)
-        hum.JumpPower = State.Jump
-        
-        -- METODE C: Reactive Impulse Jump
-        -- Memaksa karakter naik ke atas tanpa peduli sedang dalam state apapun
         if UIS:GetFocusedTextBox() == nil and UIS:IsKeyDown(Enum.KeyCode.Space) then
-            -- Mencegah velocity bertumpuk berlebihan (Anti-Skyrocket)
-            if tick() - lastMoveTick > 0.1 then 
-                hrp.AssemblyLinearVelocity = Vector3.new(hrp.AssemblyLinearVelocity.X, State.Jump, hrp.AssemblyLinearVelocity.Z)
-                lastMoveTick = tick()
+            -- Deteksi Ground dengan Raycast sederhana agar tidak bisa terbang (Infinite Jump kecuali diinginkan)
+            -- Jika ingin Infinite Jump, hapus kondisi FloorMaterial
+            if hum.FloorMaterial ~= Enum.Material.Air then
+                if tick() - lastMoveTick > 0.15 then 
+                    hrp.AssemblyLinearVelocity = Vec3(hrp.AssemblyLinearVelocity.X, State.Jump, hrp.AssemblyLinearVelocity.Z)
+                    lastMoveTick = tick()
+                end
             end
         end
-    else
-        hum.JumpPower = 50
     end
 end)
+
+-- [ 3. MASSLESS & COLLISION MANAGER ]
+-- Diperbaiki agar tidak membebani CPU
+local function ApplyMassless(char, bool)
+    for _, part in ipairs(char:GetDescendants()) do
+        if part:IsA("BasePart") then
+            part.Massless = bool
+            -- Memperbaiki bug karakter mental saat tabrakan kecepatan tinggi
+            if bool then
+                part.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
+            else
+                part.CustomPhysicalProperties = nil
+            end
+        end
+    end
+end
+
+-- Auto-Update saat toggle berubah (Logic Trigger)
+-- Pastikan di script utama Anda, saat toggle Speedy ON, panggil ApplyMassless(char, true)
 
 -- AUTO FIX & FORCE PATCH
 lp.CharacterAdded:Connect(function(char)
     local hum = char:WaitForChild("Humanoid", 10)
+    local hrp = char:WaitForChild("HumanoidRootPart", 10)
+    
     PatchHumanoid(hum)
     
-    -- Force Re-apply: Pastikan Massless aktif saat respawn
-    task.wait(0.5)
-    for _, v in ipairs(char:GetChildren()) do
-        if v:IsA("BasePart") then v.Massless = State.Speedy end
+    task.wait(0.2)
+    if State.Speedy then
+        ApplyMassless(char, true)
     end
 end)
 
@@ -223,73 +237,128 @@ end)
 --========================================================--
 
 local NoclipConn = nil
+local CollisionCache = {} -- Menyimpan state asli part
 
 local function ToggleNoclip(bool)
     State.Noclip = bool
 
+    -- Bersihkan koneksi lama
     if NoclipConn then 
         NoclipConn:Disconnect() 
         NoclipConn = nil 
     end
 
     if not bool then
-        -- Reset total collision
+        -- RESTORE LOGIC: Mengembalikan collision ke semula tanpa merusak game
         local char = lp.Character
         if char then
             for _, part in ipairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then
+                    -- Kembalikan ke state asli (default true, kecuali memang part tertentu dari game)
                     part.CanCollide = true
                 end
             end
         end
+        Notify("[ SYSTEM ]", "Noclip Deactivated: Kembali ke fisik nyata.", 2)
         return
     end
 
-    -- MENTOK: Menggunakan PreSimulation + Stepped secara bersamaan
-    -- PreSimulation untuk menghapus tabrakan sebelum dihitung engine
-    -- Stepped untuk memastikan karakter tidak "nyangkut" di dalam objek static
+    -- LOGIC UPGRADE: Menggunakan Stepped (Berjalan sebelum physics kalkulasi)
     NoclipConn = RunService.Stepped:Connect(function()
-        if not State.Noclip then return end
-
         local char = lp.Character
-        if not char then return end
+        if not char or not State.Noclip then return end
 
-        -- 1. State Enforcement
-        -- Memaksa Humanoid agar tidak masuk ke state 'Physics' yang bisa bikin mental
         local hum = char:FindFirstChildOfClass("Humanoid")
+        
+        -- 1. STATE LOCKING (Anti-Ragdoll/Physics Bug)
+        -- RunningNoPhysics adalah state paling stabil untuk noclip
         if hum then
-            if hum:GetState() == Enum.HumanoidStateType.Physics then
+            local currentState = hum:GetState()
+            if currentState ~= Enum.HumanoidStateType.RunningNoPhysics and 
+               currentState ~= Enum.HumanoidStateType.Climbing and 
+               currentState ~= Enum.HumanoidStateType.Swimming then
                 hum:ChangeState(Enum.HumanoidStateType.RunningNoPhysics)
             end
         end
 
-        -- 2. Recursive Collision Disable
-        for _, part in ipairs(char:GetDescendants()) do
+        -- 2. EFFICIENT COLLISION BYPASS
+        -- Kita tidak pakai GetDescendants tiap frame (Lag). Kita langsung hajar part utama.
+        for _, part in ipairs(char:GetChildren()) do
             if part:IsA("BasePart") then
-                -- MENTOK: Hanya matikan collision jika part tersebut bersentuhan dengan objek lain
-                -- Ini mencegah "Falling to Void" karena HRP tetap memiliki kalkulasi raycast ke bawah
-                if part.Name ~= "HumanoidRootPart" then
-                    part.CanCollide = false
+                part.CanCollide = false
+            end
+            -- Aksesoris (Hat, Hair, dll) sering punya hit box yang bikin nyangkut
+            if part:IsA("Accessory") and part:FindFirstChild("Handle") then
+                part.Handle.CanCollide = false
+            end
+        end
+        
+        -- 3. SPECIFIC ROOTPART LOGIC (Anti-Falling)
+        -- Masalah: Kalau semua false, kamu jatuh ke void.
+        -- Solusi: Gunakan Raycast kecil ke bawah. Jika diam, aktifkan collision tipis.
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            if hum and hum.MoveDirection.Magnitude <= 0 then
+                -- Cek apakah ada lantai di bawah kaki
+                local ray = workspace:Raycast(hrp.Position, Vector3.new(0, -3.5, 0))
+                if ray then
+                    hrp.CanCollide = true -- Tetap di atas lantai saat diam
                 else
-                    -- Spesifik untuk RootPart: Matikan collision hanya jika sedang bergerak menembus dinding
-                    if hum and hum.MoveDirection.Magnitude > 0 then
-                        part.CanCollide = false
-                    else
-                        -- Tetap aktifkan sedikit agar tidak jatuh menembus lantai saat diam
-                        part.CanCollide = true
-                    end
+                    hrp.CanCollide = false -- Biarkan tetap noclip jika di udara
                 end
+            else
+                hrp.CanCollide = false -- Saat bergerak, tembus semuanya
             end
         end
     end)
     
-    Notify("[ SYSTEM ]", "Noclip Supreme Activated: Menembus batas!", 2)
+    Notify("[ SYSTEM ]", "Noclip Supreme: Ghost Mode Aktif!", 2)
 end
 
--- AUTO-RECOVERY: Jika karakter terjebak di dalam part saat noclip dimatikan
+--========================================================--
+-- AUTO RECOVERY & CHARACTER HANDLER
+--========================================================--
+
+-- Masalah: Jika mati/respawn saat noclip ON, seringkali noclip mati sendiri
+-- Solusi: Re-apply dengan delay halus agar karakter load sempurna
 lp.CharacterAdded:Connect(function(char)
     if State.Noclip then
-        ToggleNoclip(true)
+        task.wait(0.5) -- Tunggu part karakter ter-instantiate
+        if State.Noclip then ToggleNoclip(true) end
+    end
+end)
+
+-- INTEGRASI PENCEGAHAN TERJEBAK (Unstuck Logic)
+-- Jika noclip dimatikan saat di dalam dinding, dorong karakter ke tempat aman
+local function Unstuck()
+    if not State.Noclip then
+        local char = lp.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if hrp then
+            local pos = hrp.Position
+            -- Cek apakah HRP bertabrakan dengan sesuatu (Internal Check)
+            local params = RaycastParams.new()
+            params.FilterDescendantsInstances = {char}
+            params.FilterType = Enum.RaycastFilterType.Exclude
+            
+            local check = workspace:Spherecast(pos, 1, Vector3.new(0, 0.1, 0), params)
+            if check then
+                -- Jika terjepit, naikkan ke atas atau geser sedikit
+                hrp.CFrame = hrp.CFrame * CFrame.new(0, 5, 0)
+                Notify("[ SYSTEM ]", "Unstuck: Mengeluarkan kamu dari objek!", 2)
+            end
+        end
+    end
+end
+
+-- Pantau perubahan toggle untuk Unstuck
+task.spawn(function()
+    local lastState = State.Noclip
+    while task.wait(0.5) do
+        if lastState == true and State.Noclip == false then
+            Unstuck()
+        end
+        lastState = State.Noclip
     end
 end)
 
@@ -298,13 +367,29 @@ end)
 --========================================================--
 
 local platformPart = nil
+local lastWaterY = 0
+
+-- Helper: Mendapatkan tinggi air yang akurat (Terrain vs Mesh Water)
+local function GetWaterLevel(hrp, rayParam)
+    -- Multi-Raycast: Tengah, Depan, Belakang (Biar presisi saat lari cepat)
+    local offsets = {Vector3.new(0, 0, 0), hrp.CFrame.LookVector * 2}
+    
+    for _, offset in ipairs(offsets) do
+        local result = workspace:Raycast(hrp.Position + offset + Vector3.new(0, 5, 0), Vector3.new(0, -20, 0), rayParam)
+        if result then
+            local mat = result.Material
+            local name = result.Instance.Name:lower()
+            if mat == Enum.Material.Water or name:find("water") or name:find("lava") or name:find("acid") then
+                return result.Position.Y, true
+            end
+        end
+    end
+    return 0, false
+end
 
 RunService.PreRender:Connect(function()
     if not State.WalkOnWater then
-        if platformPart then
-            platformPart:Destroy()
-            platformPart = nil
-        end
+        if platformPart then platformPart:Destroy() platformPart = nil end
         return
     end
 
@@ -317,62 +402,49 @@ RunService.PreRender:Connect(function()
         return 
     end
 
-    -- 1. POOLING & OPTIMIZATION
+    -- 1. EFFICIENT POOLING
     if not platformPart or not platformPart.Parent then
         platformPart = Instance.new("Part")
-        platformPart.Name = "Universal_Surface_Platform"
+        platformPart.Name = "Query_Water_Platform"
         platformPart.Anchored = true
-        platformPart.Size = Vector3.new(12, 0.2, 12) -- Ukuran lebih efisien
+        platformPart.Size = Vector3.new(15, 0.5, 15) -- Sedikit lebih tebal agar tidak tembus saat lag
         platformPart.Transparency = 1
-        platformPart.CastShadow = false
-        platformPart.Material = Enum.Material.Glass
-        platformPart.Friction = 0
+        platformPart.CanTouch = false -- Biar tidak trigger touch interest yang bikin lag
         platformPart.Parent = workspace
     end
 
-    -- 2. SMART RAYCASTING (Multi-Detect)
+    -- 2. LOGIC UPGRADE: SMART RAYCASTING
     local rayParam = RaycastParams.new()
     rayParam.FilterDescendantsInstances = {char, platformPart, workspace.CurrentCamera}
     rayParam.FilterType = Enum.RaycastFilterType.Exclude
     
-    -- Cek material di bawah kaki
-    local groundRay = workspace:Raycast(hrp.Position, Vector3.new(0, -15, 0), rayParam)
+    local waterY, isOverWater = GetWaterLevel(hrp, rayParam)
     
-    local shouldCollide = false
-    local targetY = hrp.Position.Y - ((hum.RigType == Enum.HumanoidRigType.R6) and 3 or (hum.HipHeight + 1.5))
+    -- 3. SNAP LOGIC (Menentukan posisi Y terbaik)
+    -- Jika di atas air, kita paksa Platform ada di permukaan air tersebut
+    local targetY = waterY - 0.1 -- Sedikit di bawah permukaan air agar kaki terlihat menginjak air
+    
+    -- 4. VELOCITY PREDICTION (Bypass Speedhack Lag)
+    -- Semakin cepat lari, semakin jauh platform ditaruh di depan agar tidak 'jatuh' dari platform sendiri
+    local horizontalVelocity = hrp.AssemblyLinearVelocity * Vector3.new(1, 0, 1)
+    local prediction = horizontalVelocity * 0.08 -- 80ms buffer
 
-    if groundRay and groundRay.Instance then
-        local mat = groundRay.Material
-        local name = groundRay.Instance.Name:lower()
+    -- 5. SMOOTH TRANSITION
+    -- Jika kita sedang melompat atau menekan CTRL, platform pindah jauh ke bawah (Tenggelam)
+    local isCrouching = UIS:IsKeyDown(Enum.KeyCode.LeftControl)
+    local isJumping = hum.Jump or hrp.AssemblyLinearVelocity.Y > 5
+    
+    if isOverWater and not isCrouching and not isJumping then
+        platformPart.CanCollide = true
+        -- Lerp CFrame agar tidak patah-patah saat air bergerak
+        platformPart.CFrame = CFrame.new(hrp.Position.X + prediction.X, waterY - 0.25, hrp.Position.Z + prediction.Z)
         
-        -- Aktivasi hanya jika di atas Air atau objek "Lava/Acid/Water"
-        if mat == Enum.Material.Water or name:find("water") or name:find("lava") or name:find("acid") then
-            shouldCollide = true
-            -- Snap ke permukaan air agar presisi
-            targetY = groundRay.Position.Y 
-        end
-    end
-
-    -- 3. DYNAMIC POSITIONING
-    -- Jika sedang jatuh bebas (Velocity Y negatif besar), lebarkan platform agar menangkap kaki lebih cepat
-    if hrp.AssemblyLinearVelocity.Y < -50 then
-        platformPart.Size = Vector3.new(25, 0.2, 25)
+        -- Mencegah friction (biar gak ngerem mendadak saat di air)
+        platformPart.Friction = 0
     else
-        platformPart.Size = Vector3.new(12, 0.2, 12)
-    end
-
-    -- 4. VELOCITY PREDICTION (Biar gak ketinggalan pas Speedhack)
-    local moveDir = hrp.AssemblyLinearVelocity * Vector3.new(1, 0, 1)
-    local prediction = moveDir * 0.05 -- Prediksi posisi 50ms ke depan
-    
-    platformPart.CFrame = CFrame.new(hrp.Position.X + prediction.X, targetY, hrp.Position.Z + prediction.Z)
-
-    -- 5. USER OVERRIDE (CTRL to Sink)
-    -- Jika tahan CTRL atau sedang melompat, matikan collision agar bisa berenang/naik
-    if UIS:IsKeyDown(Enum.KeyCode.LeftControl) or hum.Jump then
         platformPart.CanCollide = false
-    else
-        platformPart.CanCollide = shouldCollide
+        -- Taruh di bawah map jika tidak digunakan
+        platformPart.CFrame = CFrame.new(hrp.Position.X, -1000, hrp.Position.Z)
     end
 end)
 
@@ -701,22 +773,25 @@ end)
 -- THE FLY INFINITY (NO-BUG / ANTI-DAMAGE / NO-JITTER)
 --========================================================--
 local FlyConn, FlyBV, FlyBG, HeartbeatConn
-local LastCamCF = workspace.CurrentCamera.CFrame
+local Vec3 = Vector3.new
+local ZeroVec = Vector3.zero
 
--- [ HELPER: Mencegah Deteksi Sentuhan & Animasi ]
+-- [ 1. BYPASS & STATE MANAGEMENT ]
 local function SetRigidStatus(status)
     local char = lp.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     if not hum then return end
 
     if status then
-        hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+        -- Mencegah animasi falling/ragdoll yang memicu anti-cheat
         hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
         hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-        hum:ChangeState(Enum.HumanoidStateType.Physics)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Landed, false)
+        hum:ChangeState(Enum.HumanoidStateType.Swimming)
     else
-        hum:SetStateEnabled(Enum.HumanoidStateType.Dead, true)
         hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Landed, true)
         hum:ChangeState(Enum.HumanoidStateType.GettingUp)
     end
 end
@@ -729,18 +804,18 @@ local function StopFly()
 
     local char = lp.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
-    
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+
     SetRigidStatus(false)
     if hum then hum.PlatformStand = false end
-    
+    if hrp then 
+        hrp.AssemblyLinearVelocity = ZeroVec
+        hrp.AssemblyAngularVelocity = ZeroVec
+    end
+
     if char then
         for _, v in ipairs(char:GetDescendants()) do
-            if v:IsA("BasePart") then 
-                v.CanTouch = true 
-                -- Reset Velocity agar tidak mental saat berhenti
-                v.Velocity = Vector3.zero 
-                v.RotVelocity = Vector3.zero
-            end
+            if v:IsA("BasePart") then v.CanTouch = true end
         end
     end
 end
@@ -755,26 +830,23 @@ local function StartFly()
 
     if not hrp or not hum then return end
 
-    -- Initial Rigidity
-    hum.PlatformStand = true
+    -- [ 2. PHYSICS INJECTION ]
     SetRigidStatus(true)
-
-    -- [ BODY CONTROL INJECTION ]
+    
     FlyBV = Instance.new("BodyVelocity")
     FlyBV.Name = "SUPREME_FLY_BV"
-    FlyBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    FlyBV.Velocity = Vector3.zero
+    FlyBV.MaxForce = Vec3(math.huge, math.huge, math.huge)
+    FlyBV.Velocity = ZeroVec
     FlyBV.Parent = hrp
 
     FlyBG = Instance.new("BodyGyro")
     FlyBG.Name = "SUPREME_FLY_BG"
-    FlyBG.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-    FlyBG.P = 2e6 -- Power extra kaku
-    FlyBG.D = 100
+    FlyBG.MaxTorque = Vec3(math.huge, math.huge, math.huge)
+    FlyBG.P = 9e4
     FlyBG.CFrame = hrp.CFrame
     FlyBG.Parent = hrp
 
-    -- [ CORE FLY LOOP ]
+    -- [ 3. CORE FLY ENGINE ]
     FlyConn = RunService.RenderStepped:Connect(function()
         if not State.Fly or not hrp.Parent or hum.Health <= 0 then 
             StopFly() 
@@ -782,80 +854,77 @@ local function StartFly()
         end
 
         local camCF = cam.CFrame
-        local direction = Vector3.zero
         local moveDir = hum.MoveDirection
+        local flyVec = ZeroVec
 
-        -- 1. FIXED JOYSTICK LOGIC (Relative to Camera)
+        -- Arah pergerakan 3D (Relative to Camera)
         if moveDir.Magnitude > 0 then
-            -- Joystick/Mobile Support
-            direction = moveDir
-        else
-            -- PC/Keyboard Support
-            if UIS:IsKeyDown(Enum.KeyCode.W) then direction += camCF.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.S) then direction -= camCF.LookVector end
-            if UIS:IsKeyDown(Enum.KeyCode.A) then direction -= camCF.RightVector end
-            if UIS:IsKeyDown(Enum.KeyCode.D) then direction += camCF.RightVector end
+            -- Logic: LookVector menangani arah Forward/Backward, RightVector menangani Left/Right
+            local look = camCF.LookVector
+            local right = camCF.RightVector
+            flyVec = (look * (moveDir.Z * -1)) + (right * moveDir.X)
         end
 
-        -- 2. VERTICAL MOVEMENT
-        if UIS:IsKeyDown(Enum.KeyCode.Space) then direction += Vector3.new(0, 1, 0) end
-        if UIS:IsKeyDown(Enum.KeyCode.LeftControl) then direction -= Vector3.new(0, 1, 0) end
-
-        -- 3. APPLY VELOCITY & STABILITY
-        if direction.Magnitude > 0 then
-            FlyBV.Velocity = direction.Unit * State.FlySpeed
-        else
-            -- Friction aktif: Karakter langsung berhenti, tidak hanyut
-            FlyBV.Velocity = Vector3.new(0, 0, 0)
+        -- Kontrol Vertikal (Space = Naik, L-CTRL = Turun)
+        if UIS:IsKeyDown(Enum.KeyCode.Space) then
+            flyVec = flyVec + Vec3(0, 1, 0)
+        elseif UIS:IsKeyDown(Enum.KeyCode.LeftControl) then
+            flyVec = flyVec + Vec3(0, -1, 0)
         end
 
-        -- Rotasi kaku mengikuti arah kamera
+        -- Aplikasi Velocity & Gyro
+        if flyVec.Magnitude > 0 then
+            FlyBV.Velocity = flyVec.Unit * State.FlySpeed
+        else
+            FlyBV.Velocity = ZeroVec -- Instant Brake
+        end
+
         FlyBG.CFrame = camCF
-        
-        -- Override Animasi (Force Idle/Rigid)
         hum.PlatformStand = true
+        
+        -- Bypass: Memaksa state swimming (Sangat penting untuk NDS)
+        if hum:GetState() ~= Enum.HumanoidStateType.Swimming then
+            hum:ChangeState(Enum.HumanoidStateType.Swimming)
+        end
     end)
 
-    -- [ ANTI-DAMAGE & TOUCH BYPASS LOOP ]
+    -- [ 4. BYPASS LOOP (ANTI-DAMAGE & NOCLIP) ]
     HeartbeatConn = RunService.Heartbeat:Connect(function()
         if not State.Fly or not char then return end
         
+        -- Noclip Logic (Dijalankan di Heartbeat agar lebih stabil dari Stepped)
         for _, v in ipairs(char:GetChildren()) do
             if v:IsA("BasePart") then
-                -- Mematikan CanTouch agar tidak terkena trap/lava (Anti-Damage)
-                v.CanTouch = false
-                -- Menghilangkan Velocity jatuh agar tidak mati karena fall damage
-                v.Velocity = (FlyBV and FlyBV.Velocity) or Vector3.zero
+                v.CanCollide = false -- Noclip
+                v.CanTouch = false -- Anti-Damage (Lava/Acid)
+                v.Velocity = Vec3(0, 0.05, 0) -- Velocity Spoofing
             end
-        end
-        
-        -- Memaksa State agar tidak bisa Ragdoll atau mati mendadak
-        if hum:GetState() ~= Enum.HumanoidStateType.Physics then
-            hum:ChangeState(Enum.HumanoidStateType.Physics)
+            -- Handle Aksesoris agar tidak nyangkut
+            if v:IsA("Accessory") and v:FindFirstChild("Handle") then
+                v.Handle.CanCollide = false
+            end
         end
     end)
 end
 
 --========================================================--
--- NOCLIP INTEGRATION (SUPREME COLLISION BYPASS)
+-- PERSISTENCE & AUTO-FIX
 --========================================================--
-RunService.Stepped:Connect(function()
-    if not State.Fly then return end
-    local char = lp.Character
-    if char then
-        for _, v in ipairs(char:GetDescendants()) do
-            if v:IsA("BasePart") and v.CanCollide then
-                v.CanCollide = false
-            end
-        end
+
+-- Menangani Respawn (Jika mati, Fly otomatis menyala lagi jika State.Fly true)
+lp.CharacterAdded:Connect(function(char)
+    if State.Fly then
+        task.wait(0.5) -- Jeda agar karakter load sempurna
+        if State.Fly then StartFly() end
     end
 end)
 
--- INTEGRASI HEARTBEAT (FORCE PERSISTENCE)
-RunService.Heartbeat:Connect(function()
-    if State.Fly then
-        if not FlyBV or not FlyBV.Parent or not FlyBG or not FlyBG.Parent then
-            StartFly()
+-- Health Checker: Mencegah karakter "nyangkut" saat HP 0
+task.spawn(function()
+    while task.wait(0.5) do
+        local hum = lp.Character and lp.Character:FindFirstChildOfClass("Humanoid")
+        if hum and hum.Health <= 0 and State.Fly then
+            StopFly()
         end
     end
 end)
@@ -865,100 +934,102 @@ end)
 --========================================================--
 
 local FinalGodConn = nil
-local CollisionFix = nil
+local JointConn = nil
+
+-- [ HELPER: RE-JOINT SYSTEM ]
+-- Mencegah tubuh hancur saat terkena ledakan besar (Anti-Mutilation)
+local function SecureJoints(char)
+    for _, v in ipairs(char:GetDescendants()) do
+        if v:IsA("Motor6D") then
+            v.Name = "SECURE_" .. v.Name -- Mengganti nama agar script game tidak bisa menemukan joint untuk dilepas
+        end
+    end
+end
 
 local function OmegaGod(char)
     if not char then return end
-    local hum = char:WaitForChild("Humanoid", 20)
-    local hrp = char:WaitForChild("HumanoidRootPart", 20)
-    local head = char:WaitForChild("Head", 20)
+    local hum = char:WaitForChild("Humanoid", 10)
+    local hrp = char:FindFirstChild("HumanoidRootPart")
 
-    -- [ 1. INSTANCE NULLIFICATION ]
-    -- Menghancurkan sensor damage bawaan Roblox (TouchTransmitter) di seluruh tubuh
-    local function StripSensors(target)
-        for _, v in ipairs(target:GetDescendants()) do
+    if not hum then return end
+
+    -- [ 1. SENSOR & RE-JOINT PROTECTION ]
+    local function Cleanse()
+        for _, v in ipairs(char:GetDescendants()) do
             if v:IsA("TouchTransmitter") then
-                v:Destroy()
+                v:Destroy() -- Menghancurkan sensor sentuh (Lava, Trap, Peluru)
+            elseif v:IsA("Motor6D") and not v.Name:find("SECURE_") then
+                v.Name = "SECURE_" .. v.Name
             end
         end
     end
-    StripSensors(char)
+    Cleanse()
 
-    -- [ 2. METATABLE SPOOFING (SANGAT EKSTRA) ]
-    -- Membuat server percaya darah Anda SELALU Max dan tidak pernah berubah
-    local raw_mt = getrawmetatable(game)
-    setreadonly(raw_mt, false)
-    local old_index = raw_mt.__index
-    local old_newindex = raw_mt.__newindex
-
-    raw_mt.__index = newcclosure(function(self, key)
-        if State.GodMode and self == hum then
+    -- [ 2. ADVANCED METATABLE BYPASS ]
+    -- Menggunakan hookmetamethod agar lebih modern dan sulit dideteksi anti-cheat
+    local oldIndex
+    oldIndex = hookmetamethod(game, "__index", function(self, key)
+        if not checkcaller() and State.GodMode and self == hum then
             if key == "Health" then return hum.MaxHealth end
             if key == "Sit" then return false end
         end
-        return old_index(self, key)
+        return oldIndex(self, key)
     end)
 
-    raw_mt.__newindex = newcclosure(function(self, key, value)
-        if State.GodMode and self == hum and (key == "Health" or key == "Jump") then
-            return -- Memblokir semua upaya server untuk mengubah darah (Set Health to 0 diblokir)
-        end
-        return old_newindex(self, key, value)
-    end)
-    setreadonly(raw_mt, true)
-
-    -- [ 3. BEYOND IMMORTALITY LOOP ]
+    -- [ 3. CORE IMMORTALITY LOOP ]
     if FinalGodConn then FinalGodConn:Disconnect() end
-    
-    FinalGodConn = RunService.PreSimulation:Connect(function() -- Tahap paling awal fisika
+    FinalGodConn = RunService.PreSimulation:Connect(function()
         if not State.GodMode or not hum.Parent then return end
 
-        -- Reset Health di tingkat tercepat (Engine Level)
+        -- Force Health: Mengunci HP di tingkat engine (Client-Side)
         hum.Health = hum.MaxHealth
         
-        -- MENTOK: Fix Kepala Putus / Neck Glitch
-        hum.RequiresNeck = false
+        -- Bypass Death: Mematikan state mati agar karakter tidak hancur saat HP 0 (Server-Side)
+        hum:SetStateEnabled(Enum.HumanoidStateType.Dead, false)
+        hum.RequiresNeck = false -- Anti kepala putus
         
-        -- MENTOK: Anti-Void Absolute
-        if hrp.Position.Y < -500 then
-            hrp.AssemblyLinearVelocity = Vector3.zero
-            hrp.CFrame = CFrame.new(hrp.Position.X, 500, hrp.Position.Z)
+        -- Anti-Void Absolute
+        if hrp and hrp.Position.Y < (workspace.FallenPartsDestroyHeight + 10) then
+            hrp.AssemblyLinearVelocity = Vector3.new(0, 50, 0)
+            hrp.CFrame = CFrame.new(hrp.Position.X, 100, hrp.Position.Z)
         end
 
-        -- MENTOK: Ghost Body (Mencegah terdeteksi oleh Raycast musuh/NPC)
+        -- Ghost Body Physics
         for _, part in ipairs(char:GetChildren()) do
             if part:IsA("BasePart") then
-                part.CanTouch = false -- Tidak bisa disentuh lava/peluru
-                part.CanQuery = false -- Tidak bisa dideteksi Raycast (Ghost Mode)
+                part.CanTouch = false -- Bypass Touched Events
+                part.CanQuery = false -- Bypass Raycasts (Sangat OP untuk game tembak-tembakan)
             end
         end
     end)
 
-    -- [ 4. JOINT ANCHORING (ANTI-EXPLOSION) ]
-    -- Jika tubuh diledakkan, sendi tidak akan lepas karena kita paksa Parent-nya
-    char.DescendantRemoving:Connect(function(desc)
-        if State.GodMode and desc:IsA("Motor6D") then
-            local p0, p1, name, parent = desc.Part0, desc.Part1, desc.Name, desc.Parent
-            local c0, c1 = desc.C0, desc.C1
-            task.delay(0, function()
-                local n = Instance.new("Motor6D")
-                n.Name = name n.Part0 = p0 n.Part1 = p1
-                n.C0 = c0 n.C1 = c1 n.Parent = parent
+    -- [ 4. DYNAMIC REPAIR SYSTEM ]
+    -- Jika ada part tubuh yang dihapus paksa oleh script game, script ini akan menghentikannya
+    if JointConn then JointConn:Disconnect() end
+    JointConn = char.DescendantRemoving:Connect(function(desc)
+        if State.GodMode and (desc:IsA("Motor6D") or desc:IsA("BasePart")) then
+            -- Jika joint dilepas, kita paksa karakter untuk tidak hancur
+            task.delay(0.1, function()
+                if hum then hum:ChangeState(Enum.HumanoidStateType.GettingUp) end
             end)
         end
     end)
+    
+    Notify("[ SYSTEM ]", "Omega God Mode: Immortality Overloaded!", 2)
 end
 
+--========================================================--
+-- AUTO-RECOVERY & PERSISTENCE
+--========================================================--
+
+-- Monitoring Loop (Memastikan GodMode tidak mati saat script game mencoba mereset Humanoid)
 task.spawn(function()
-    while task.wait(1) do
+    while task.wait(2) do
         if State.GodMode then
             local char = lp.Character
-            if char and char:FindFirstChild("Humanoid") then
-                if not char.Humanoid:GetStateEnabled(Enum.HumanoidStateType.Dead) then
-                    -- Sudah aktif
-                else
-                    OmegaGod(char)
-                end
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            if hum and hum:GetStateEnabled(Enum.HumanoidStateType.Dead) then
+                OmegaGod(char)
             end
         end
     end
@@ -966,7 +1037,7 @@ end)
 
 lp.CharacterAdded:Connect(function(char)
     if State.GodMode then
-        task.wait(0.1)
+        task.wait(0.5) -- Menunggu karakter load sempurna
         OmegaGod(char)
     end
 end)
